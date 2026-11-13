@@ -1,0 +1,14 @@
+# This project's carve-outs from the Go lint baseline (.limen/lint-go.yaml):
+# the baseline's sections, in its shape, holding only what this project adds,
+# changes or takes out. `just do lint go` renders the two on every run
+# (book/linting-go.md, "one baseline, per-project carve-outs").
+
+golangci:
+  linters:
+    settings:
+      wrapcheck:
+        # The module's own packages wrap every error with its context at
+        # the call that failed; a caller re-wrapping each one would say
+        # the same thing twice.
+        ignore-package-globs:
+          - github.com/duncanite/go-lutron/*
