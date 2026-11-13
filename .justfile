@@ -8,3 +8,14 @@ lint: do::lint::default do::lint::go::default
 fix: do::fix::default do::fix::go::default
 test: do::test::go::default
 security: do::security::default do::security::go::default
+
+# The command, built from this module at the commit checked out and run on
+# the bridge's network: `just lutron devices`, `just lutron set "Hallway Lights" 40`.
+
+[doc('Build lutron and run it: `just lutron devices`.')]
+lutron +args: build-lutron
+    .build/lutron {{ args }}
+
+build-lutron:
+    mkdir -p .build
+    go build -o .build/lutron ./cmd/lutron

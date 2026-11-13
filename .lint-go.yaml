@@ -6,9 +6,37 @@
 golangci:
   linters:
     settings:
+      depguard:
+        rules:
+          main:
+            # What the command is built on: the house application toolkit
+            # for its process and its atomic writes, the CLI framework,
+            # and xos for reading files. The library is the standard
+            # library alone.
+            allow:
+              - github.com/mycophonic/primordium
+              - github.com/forkcloser/xos
+              - github.com/alecthomas/kong
+              # The key's access list on Windows, where a file's mode does
+              # not say who may read it.
+              - golang.org/x/sys/windows
+      forbidigo:
+        forbid:
+          # A file is opened, read, listed or stat'ed through xos, whose
+          # handles let another process rename or remove it on Windows; a
+          # write goes through primordium's atomic WriteFile, but for the
+          # key, written through a handle xos opened and renamed by xos.
+          - pattern: '^os\.(Open|OpenFile|Create|CreateTemp|ReadFile|WriteFile|ReadDir|Rename|Stat)$'
+            msg: "open files through github.com/forkcloser/xos, write them through primordium's filesystem.WriteFile"
       wrapcheck:
         # The module's own packages wrap every error with its context at
         # the call that failed; a caller re-wrapping each one would say
         # the same thing twice.
         ignore-package-globs:
           - github.com/duncanite/go-lutron/*
+
+commands:
+  unshipped:
+    # Built and run from the tree while the protocol is proven against a
+    # bridge; no release ships it yet.
+    - ./cmd/lutron
