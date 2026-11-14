@@ -12,9 +12,12 @@ security: do::security::default do::security::go::default
 # The command, built from this module at the commit checked out and run on
 # the bridge's network: `just lutron devices`, `just lutron set "Hallway Lights" 40`.
 
+# Positional, so an argument with a space in it, a device's name, reaches the
+# command as one argument.
 [doc('Build lutron and run it: `just lutron devices`.')]
+[positional-arguments]
 lutron +args: build-lutron
-    .build/lutron {{ args }}
+    .build/lutron "$@"
 
 build-lutron:
     mkdir -p .build
