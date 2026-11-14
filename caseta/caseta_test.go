@@ -5,6 +5,7 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -78,6 +79,12 @@ func TestWhatTheBridgeHolds(t *testing.T) {
 	if self := devices[0]; self.Href != "/device/1" || self.DeviceType != "SmartBridge" ||
 		self.ModelNumber != "L-BDG2-WH" || self.SerialNumber != 1234 || len(self.LocalZones) != 0 {
 		t.Fatalf("the bridge itself: %+v", self)
+	}
+
+	// These answers carry no firmware, and a device says so by an empty
+	// version.
+	if devices[0].Firmware != "" || devices[1].Firmware != "" {
+		t.Fatalf("firmware out of an answer that has none: %q, %q", devices[0].Firmware, devices[1].Firmware)
 	}
 
 	dimmer := devices[1]
@@ -382,6 +389,31 @@ func TestARealBridge(t *testing.T) {
 		t.Fatalf("the bridge itself: %+v", self)
 	}
 
+	// The bridge reports its own firmware in one place and every other
+	// device's in another; each device of this bridge has one.
+	if devices[0].Firmware != "08.28.13f000" || devices[1].Firmware != "001.019.000r000" {
+		t.Fatalf("firmware: the bridge %q, the first dimmer %q", devices[0].Firmware, devices[1].Firmware)
+	}
+
+	for index := range devices {
+		if devices[index].Firmware == "" {
+			t.Fatalf("a device with no firmware: %+v", devices[index])
+		}
+	}
+
+	var listing strings.Builder
+	if err = caseta.WriteDevices(&listing, devices, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(listing.String(), "SmartBridge            L-BDG2-WH         20000001  08.28.13f000") ||
+		!strings.Contains(
+			listing.String(),
+			"Area 11 Dimmer 1   WallDimmer             PD-6WCL-XX        20000002  001.019.000r000  1     \n",
+		) {
+		t.Fatalf("the listing:\n%s", listing.String())
+	}
+
 	buttons, err := opened.Buttons(t.Context())
 	if err != nil {
 		t.Fatal(err)
@@ -427,5 +459,74 @@ func TestARealBridge(t *testing.T) {
 	status, err := opened.Zone(t.Context(), "1")
 	if err != nil || status.Level == nil || *status.Level != 100 || status.Zone.ID() != "1" {
 		t.Fatalf("zone 1: %v, %+v", err, status)
+	}
+}
+
+// failing is a writer that takes nothing.
+type failing struct{}
+
+func (failing) Write([]byte) (int, error) { return 0, io.ErrClosedPipe }
+
+// TestFirmwareShapes: which version is a device's when the answer could
+// give two, a device that is not one, and a listing that cannot be
+// written.
+func TestFirmwareShapes(t *testing.T) {
+	t.Parallel()
+
+	part := func(version string) map[string]any {
+		return map[string]any{"Type": "CCA", "OS": map[string]any{"Firmware": map[string]any{"DisplayName": version}}}
+	}
+
+	fake := leaptest.New()
+	t.Cleanup(fake.Close)
+
+	fake.Set("/device", "MultipleDeviceDefinition", map[string]any{"Devices": []map[string]any{
+		{"href": "/device/1", "FirmwareImage": map[string]any{"Contents": []any{part("first"), part("second")}}},
+		{"href": "/device/2", "FirmwareImage": map[string]any{
+			"Firmware": map[string]any{"DisplayName": "own"}, "Contents": []any{part("a part's")},
+		}},
+		{"href": "/device/3", "FirmwareImage": map[string]any{}},
+		{"href": "/device/4", "FirmwareImage": nil},
+	}})
+
+	opened, err := caseta.Open(t.Context(), fake.Addr(), fake.Credentials())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() { _ = opened.Close() })
+
+	devices, err := opened.Devices(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if devices[0].Firmware != "first" || devices[1].Firmware != "own" || devices[2].Firmware != "" ||
+		devices[3].Firmware != "" || devices[3].ID() != "4" {
+		t.Fatalf(
+			"firmware: %q, %q, %q, %q",
+			devices[0].Firmware,
+			devices[1].Firmware,
+			devices[2].Firmware,
+			devices[3].Firmware,
+		)
+	}
+
+	if err = caseta.WriteDevices(
+		failing{},
+		devices,
+		nil,
+	); err == nil ||
+		!strings.Contains(err.Error(), "writing the devices") {
+		t.Fatalf("a listing that cannot be written: %v", err)
+	}
+
+	// A device whose name is a number is not a device.
+	fake.Set("/device", "MultipleDeviceDefinition", map[string]any{"Devices": []map[string]any{
+		{"href": "/device/1", "Name": 7},
+	}})
+
+	if _, err = opened.Devices(t.Context()); !errors.Is(err, caseta.ErrAnswer) {
+		t.Fatalf("a device whose name is a number: %v", err)
 	}
 }

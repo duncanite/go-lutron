@@ -35,6 +35,9 @@ func house(t *testing.T) (*leaptest.Bridge, string) {
 			"href": "/device/2", "Name": "Lights", "FullyQualifiedName": []string{"Hallway", "Lights"},
 			"SerialNumber": 2345, "ModelNumber": "PD-6WCL-XX", "DeviceType": "WallDimmer",
 			"LocalZones": []any{ref("/zone/1")},
+			"FirmwareImage": map[string]any{"Contents": []any{map[string]any{
+				"Type": "CCA", "OS": map[string]any{"Firmware": map[string]any{"DisplayName": "001.019.000r000"}},
+			}}},
 		},
 		{
 			"href": "/device/8", "Name": "Pico", "FullyQualifiedName": []string{"Bedroom", "Pico"},
@@ -126,8 +129,10 @@ func TestTheCommands(t *testing.T) {
 		want string
 	}{
 		{[]string{"ping"}, "LEAP 1.115"},
-		{[]string{"devices"}, "2       Hallway Lights  WallDimmer             PD-6WCL-XX  2345    1"},
-		{[]string{"devices"}, "8       Bedroom Pico    Pico3ButtonRaiseLower  PJ2-3BRL    4567          101=0"},
+		{[]string{"devices"}, "DEVICE  NAME            TYPE                   MODEL       SERIAL  FIRMWARE         ZONE  BUTTONS"},
+		{[]string{"devices"}, "2       Hallway Lights  WallDimmer             PD-6WCL-XX  2345    001.019.000r000  1"},
+		// The Pico's answer carries no firmware: the column is empty.
+		{[]string{"devices"}, "8       Bedroom Pico    Pico3ButtonRaiseLower  PJ2-3BRL    4567                           101=0"},
 		{[]string{"scenes"}, "1\tMovie\n"},
 		{[]string{"level", "1"}, "zone 1 is at 75"},
 		{[]string{"level", "lights"}, "zone 1 is at 75"},

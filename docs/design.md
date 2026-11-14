@@ -17,7 +17,8 @@ and what was not tried.
 - `leap/leaptest`: a bridge for tests. Both TLS ports under authorities made for the
   test, the pairing behind a button, LEAP over a table of resources, with commands
   recorded and events emitted on demand.
-- `caseta`: a Caséta bridge's objects over that wire: devices, areas, buttons, scenes; a
+- `caseta`: a Caséta bridge's objects over that wire: devices, with the firmware each
+  runs, areas, buttons, scenes; `WriteDevices`, the listing a command prints; a
   zone's level; the commands a zone, a button and a scene take; a button's events by
   subscription, and the zones' changes, which a Caséta bridge sends unasked.
 - `cmd/lutron` and `internal/cli`: the command, kong under primordium's process setup.
