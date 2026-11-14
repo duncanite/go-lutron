@@ -1,0 +1,19 @@
+{
+  "CommuniqueType": "ReadResponse",
+  "Header": {
+    "ClientTag": "go-1",
+    "Url": "/zone/1/status",
+    "StatusCode": "200 OK",
+    "MessageBodyType": "OneZoneStatus"
+  },
+  "Body": {
+    "ZoneStatus": {
+      "href": "/zone/1/status",
+      "Level": 100,
+      "Zone": {
+        "href": "/zone/1"
+      },
+      "StatusAccuracy": "Good"
+    }
+  }
+}

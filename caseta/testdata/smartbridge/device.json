@@ -1,0 +1,1215 @@
+{
+  "CommuniqueType": "ReadResponse",
+  "Header": {
+    "ClientTag": "go-1",
+    "Url": "/device",
+    "StatusCode": "200 OK",
+    "MessageBodyType": "MultipleDeviceDefinition"
+  },
+  "Body": {
+    "Devices": [
+      {
+        "Name": "Smart Bridge",
+        "DeviceType": "SmartBridge",
+        "href": "/device/1",
+        "SerialNumber": 20000001,
+        "FullyQualifiedName": [
+          "Smart Bridge"
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "L-BDG2-WH",
+        "ProductId": "134479872",
+        "RepeaterProperties": {
+          "IsRepeater": true
+        },
+        "OwnedLinks": [
+          {
+            "href": "/link/1",
+            "LinkType": "RF"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/1/linknode/1"
+          }
+        ],
+        "DeviceRules": [
+          {
+            "href": "/devicerule/40"
+          }
+        ],
+        "FirmwareImage": {
+          "Firmware": {
+            "DisplayName": "08.28.13f000"
+          },
+          "Installed": {
+            "Year": 2026,
+            "Month": 11,
+            "Day": 7,
+            "Hour": 4,
+            "Minute": 3,
+            "Second": 54,
+            "Utc": "-8:00:00"
+          }
+        },
+        "DeviceFirmwarePackage": {
+          "Package": {
+            "DisplayName": "001.003.004r000"
+          }
+        },
+        "AddressedState": "Addressed",
+        "IsThisDevice": true,
+        "AssociatedLink": {
+          "href": "/link/1"
+        }
+      },
+      {
+        "Name": "Dimmer 1",
+        "DeviceType": "WallDimmer",
+        "AssociatedArea": {
+          "href": "/area/12"
+        },
+        "href": "/device/2",
+        "SerialNumber": 20000002,
+        "FullyQualifiedName": [
+          "Area 11",
+          "Dimmer 1"
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "PD-6WCL-XX",
+        "ProductId": "70386688",
+        "LocalZones": [
+          {
+            "href": "/zone/1"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/2/linknode/2"
+          }
+        ],
+        "DeviceRules": [
+          {
+            "href": "/devicerule/157"
+          }
+        ],
+        "FirmwareImage": {
+          "href": "/firmwareimage/2",
+          "Device": {
+            "href": "/device/2"
+          },
+          "Contents": [
+            {
+              "Type": "CCA",
+              "OS": {
+                "Firmware": {
+                  "DisplayName": "001.019.000r000"
+                }
+              }
+            }
+          ]
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/1"
+        },
+        "LoadControllers": [
+          {
+            "href": "/loadcontroller/1"
+          }
+        ]
+      },
+      {
+        "Name": "Dimmer 2",
+        "DeviceType": "WallDimmer",
+        "AssociatedArea": {
+          "href": "/area/15"
+        },
+        "href": "/device/3",
+        "SerialNumber": 20000003,
+        "FullyQualifiedName": [
+          "Area 14",
+          "Dimmer 2"
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "PD-6WCL-XX",
+        "ProductId": "70386688",
+        "LocalZones": [
+          {
+            "href": "/zone/2"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/3/linknode/3"
+          }
+        ],
+        "DeviceRules": [
+          {
+            "href": "/devicerule/157"
+          }
+        ],
+        "FirmwareImage": {
+          "href": "/firmwareimage/3",
+          "Device": {
+            "href": "/device/3"
+          },
+          "Contents": [
+            {
+              "Type": "CCA",
+              "OS": {
+                "Firmware": {
+                  "DisplayName": "001.019.000r000"
+                }
+              }
+            }
+          ]
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/1"
+        },
+        "LoadControllers": [
+          {
+            "href": "/loadcontroller/2"
+          }
+        ]
+      },
+      {
+        "Name": "Dimmer 3",
+        "DeviceType": "WallDimmer",
+        "AssociatedArea": {
+          "href": "/area/5"
+        },
+        "href": "/device/4",
+        "SerialNumber": 20000004,
+        "FullyQualifiedName": [
+          "Area 4",
+          "Dimmer 3"
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "PD-6WCL-XX",
+        "ProductId": "70386688",
+        "LocalZones": [
+          {
+            "href": "/zone/3"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/4/linknode/4"
+          }
+        ],
+        "DeviceRules": [
+          {
+            "href": "/devicerule/157"
+          }
+        ],
+        "FirmwareImage": {
+          "href": "/firmwareimage/4",
+          "Device": {
+            "href": "/device/4"
+          },
+          "Contents": [
+            {
+              "Type": "CCA",
+              "OS": {
+                "Firmware": {
+                  "DisplayName": "001.051.000r000"
+                }
+              }
+            }
+          ]
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/1"
+        },
+        "LoadControllers": [
+          {
+            "href": "/loadcontroller/3"
+          }
+        ]
+      },
+      {
+        "Name": "Dimmer 4",
+        "DeviceType": "WallDimmer",
+        "AssociatedArea": {
+          "href": "/area/11"
+        },
+        "href": "/device/5",
+        "SerialNumber": 20000005,
+        "FullyQualifiedName": [
+          "Area 10",
+          "Dimmer 4"
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "PD-6WCL-XX",
+        "ProductId": "70386688",
+        "LocalZones": [
+          {
+            "href": "/zone/4"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/5/linknode/5"
+          }
+        ],
+        "DeviceRules": [
+          {
+            "href": "/devicerule/157"
+          }
+        ],
+        "FirmwareImage": {
+          "href": "/firmwareimage/5",
+          "Device": {
+            "href": "/device/5"
+          },
+          "Contents": [
+            {
+              "Type": "CCA",
+              "OS": {
+                "Firmware": {
+                  "DisplayName": "001.019.000r000"
+                }
+              }
+            }
+          ]
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/1"
+        },
+        "LoadControllers": [
+          {
+            "href": "/loadcontroller/4"
+          }
+        ]
+      },
+      {
+        "Name": "Dimmer 5",
+        "DeviceType": "WallDimmer",
+        "AssociatedArea": {
+          "href": "/area/4"
+        },
+        "href": "/device/6",
+        "SerialNumber": 20000006,
+        "FullyQualifiedName": [
+          "Area 3",
+          "Dimmer 5"
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "PD-6WCL-XX",
+        "ProductId": "70386688",
+        "LocalZones": [
+          {
+            "href": "/zone/5"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/6/linknode/6"
+          }
+        ],
+        "DeviceRules": [
+          {
+            "href": "/devicerule/157"
+          }
+        ],
+        "FirmwareImage": {
+          "href": "/firmwareimage/6",
+          "Device": {
+            "href": "/device/6"
+          },
+          "Contents": [
+            {
+              "Type": "CCA",
+              "OS": {
+                "Firmware": {
+                  "DisplayName": "001.019.000r000"
+                }
+              }
+            }
+          ]
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/1"
+        },
+        "LoadControllers": [
+          {
+            "href": "/loadcontroller/5"
+          }
+        ]
+      },
+      {
+        "Name": "Pico 1",
+        "DeviceType": "Pico3ButtonRaiseLower",
+        "AssociatedArea": {
+          "href": "/area/11"
+        },
+        "href": "/device/7",
+        "SerialNumber": 20000007,
+        "FullyQualifiedName": [
+          "Area 10",
+          "Pico 1"
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "PJ2-3BRL-GXX-X01",
+        "ProductId": "17235974",
+        "ButtonGroups": [
+          {
+            "href": "/buttongroup/2"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/7/linknode/7"
+          }
+        ],
+        "DeviceRules": [
+          {
+            "href": "/devicerule/25"
+          }
+        ],
+        "FirmwareImage": {
+          "href": "/firmwareimage/7",
+          "Device": {
+            "href": "/device/7"
+          },
+          "Contents": [
+            {
+              "Type": "CCA",
+              "OS": {
+                "Firmware": {
+                  "DisplayName": "000.000.000r000"
+                }
+              }
+            }
+          ]
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/1"
+        }
+      },
+      {
+        "Name": "Dimmer 6",
+        "DeviceType": "WallDimmer",
+        "AssociatedArea": {
+          "href": "/area/7"
+        },
+        "href": "/device/8",
+        "SerialNumber": 20000008,
+        "FullyQualifiedName": [
+          "Area 6",
+          "Dimmer 6"
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "PD-6WCL-XX",
+        "ProductId": "70386688",
+        "LocalZones": [
+          {
+            "href": "/zone/6"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/8/linknode/8"
+          }
+        ],
+        "DeviceRules": [
+          {
+            "href": "/devicerule/157"
+          }
+        ],
+        "FirmwareImage": {
+          "href": "/firmwareimage/8",
+          "Device": {
+            "href": "/device/8"
+          },
+          "Contents": [
+            {
+              "Type": "CCA",
+              "OS": {
+                "Firmware": {
+                  "DisplayName": "001.051.000r000"
+                }
+              }
+            }
+          ]
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/1"
+        },
+        "LoadControllers": [
+          {
+            "href": "/loadcontroller/6"
+          }
+        ]
+      },
+      {
+        "Name": "Dimmer 7",
+        "DeviceType": "WallDimmer",
+        "AssociatedArea": {
+          "href": "/area/14"
+        },
+        "href": "/device/9",
+        "SerialNumber": 20000009,
+        "FullyQualifiedName": [
+          "Area 13",
+          "Dimmer 7"
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "PD-6WCL-XX",
+        "ProductId": "70386688",
+        "LocalZones": [
+          {
+            "href": "/zone/7"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/9/linknode/9"
+          }
+        ],
+        "DeviceRules": [
+          {
+            "href": "/devicerule/157"
+          }
+        ],
+        "FirmwareImage": {
+          "href": "/firmwareimage/9",
+          "Device": {
+            "href": "/device/9"
+          },
+          "Contents": [
+            {
+              "Type": "CCA",
+              "OS": {
+                "Firmware": {
+                  "DisplayName": "001.019.000r000"
+                }
+              }
+            }
+          ]
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/1"
+        },
+        "LoadControllers": [
+          {
+            "href": "/loadcontroller/7"
+          }
+        ]
+      },
+      {
+        "Name": "Dimmer 8",
+        "DeviceType": "WallDimmer",
+        "AssociatedArea": {
+          "href": "/area/13"
+        },
+        "href": "/device/10",
+        "SerialNumber": 20000010,
+        "FullyQualifiedName": [
+          "Area 12",
+          "Dimmer 8"
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "PD-6WCL-XX",
+        "ProductId": "70386688",
+        "LocalZones": [
+          {
+            "href": "/zone/8"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/10/linknode/10"
+          }
+        ],
+        "DeviceRules": [
+          {
+            "href": "/devicerule/157"
+          }
+        ],
+        "FirmwareImage": {
+          "href": "/firmwareimage/10",
+          "Device": {
+            "href": "/device/10"
+          },
+          "Contents": [
+            {
+              "Type": "CCA",
+              "OS": {
+                "Firmware": {
+                  "DisplayName": "001.019.000r000"
+                }
+              }
+            }
+          ]
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/1"
+        },
+        "LoadControllers": [
+          {
+            "href": "/loadcontroller/8"
+          }
+        ]
+      },
+      {
+        "Name": "Dimmer 9",
+        "DeviceType": "WallDimmer",
+        "AssociatedArea": {
+          "href": "/area/13"
+        },
+        "href": "/device/11",
+        "SerialNumber": 20000011,
+        "FullyQualifiedName": [
+          "Area 12",
+          "Dimmer 9"
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "PD-6WCL-XX",
+        "ProductId": "70386688",
+        "LocalZones": [
+          {
+            "href": "/zone/9"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/11/linknode/11"
+          }
+        ],
+        "DeviceRules": [
+          {
+            "href": "/devicerule/157"
+          }
+        ],
+        "FirmwareImage": {
+          "href": "/firmwareimage/11",
+          "Device": {
+            "href": "/device/11"
+          },
+          "Contents": [
+            {
+              "Type": "CCA",
+              "OS": {
+                "Firmware": {
+                  "DisplayName": "001.019.000r000"
+                }
+              }
+            }
+          ]
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/1"
+        },
+        "LoadControllers": [
+          {
+            "href": "/loadcontroller/9"
+          }
+        ]
+      },
+      {
+        "Name": "Dimmer 10",
+        "DeviceType": "WallDimmer",
+        "AssociatedArea": {
+          "href": "/area/10"
+        },
+        "href": "/device/12",
+        "SerialNumber": 20000012,
+        "FullyQualifiedName": [
+          "Area 9",
+          "Dimmer 10"
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "PD-6WCL-XX",
+        "ProductId": "70386688",
+        "LocalZones": [
+          {
+            "href": "/zone/10"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/12/linknode/12"
+          }
+        ],
+        "DeviceRules": [
+          {
+            "href": "/devicerule/157"
+          }
+        ],
+        "FirmwareImage": {
+          "href": "/firmwareimage/12",
+          "Device": {
+            "href": "/device/12"
+          },
+          "Contents": [
+            {
+              "Type": "CCA",
+              "OS": {
+                "Firmware": {
+                  "DisplayName": "001.051.000r000"
+                }
+              }
+            }
+          ]
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/1"
+        },
+        "LoadControllers": [
+          {
+            "href": "/loadcontroller/10"
+          }
+        ]
+      },
+      {
+        "Name": "Dimmer 11",
+        "DeviceType": "WallDimmer",
+        "AssociatedArea": {
+          "href": "/area/16"
+        },
+        "href": "/device/13",
+        "SerialNumber": 20000013,
+        "FullyQualifiedName": [
+          "Area 15",
+          "Dimmer 11"
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "PD-6WCL-XX",
+        "ProductId": "70386688",
+        "LocalZones": [
+          {
+            "href": "/zone/11"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/13/linknode/13"
+          }
+        ],
+        "DeviceRules": [
+          {
+            "href": "/devicerule/157"
+          }
+        ],
+        "FirmwareImage": {
+          "href": "/firmwareimage/13",
+          "Device": {
+            "href": "/device/13"
+          },
+          "Contents": [
+            {
+              "Type": "CCA",
+              "OS": {
+                "Firmware": {
+                  "DisplayName": "001.019.000r000"
+                }
+              }
+            }
+          ]
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/1"
+        },
+        "LoadControllers": [
+          {
+            "href": "/loadcontroller/11"
+          }
+        ]
+      },
+      {
+        "Name": "Pico 2",
+        "DeviceType": "Pico3ButtonRaiseLower",
+        "AssociatedArea": {
+          "href": "/area/4"
+        },
+        "href": "/device/14",
+        "SerialNumber": 20000014,
+        "FullyQualifiedName": [
+          "Area 3",
+          "Pico 2"
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "PJ2-3BRL-GXX-X01",
+        "ProductId": "17235974",
+        "ButtonGroups": [
+          {
+            "href": "/buttongroup/3"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/14/linknode/14"
+          }
+        ],
+        "DeviceRules": [
+          {
+            "href": "/devicerule/25"
+          }
+        ],
+        "FirmwareImage": {
+          "href": "/firmwareimage/14",
+          "Device": {
+            "href": "/device/14"
+          },
+          "Contents": [
+            {
+              "Type": "CCA",
+              "OS": {
+                "Firmware": {
+                  "DisplayName": "000.000.000r000"
+                }
+              }
+            }
+          ]
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/1"
+        }
+      },
+      {
+        "Name": "Switch 1",
+        "DeviceType": "WallSwitch",
+        "AssociatedArea": {
+          "href": "/area/4"
+        },
+        "href": "/device/15",
+        "SerialNumber": 20000015,
+        "FullyQualifiedName": [
+          "Area 3",
+          "Switch 1"
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "PD-8ANS-XX",
+        "ProductId": "71434240",
+        "LocalZones": [
+          {
+            "href": "/zone/12"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/15/linknode/15"
+          }
+        ],
+        "DeviceRules": [
+          {
+            "href": "/devicerule/44"
+          }
+        ],
+        "FirmwareImage": {
+          "href": "/firmwareimage/15",
+          "Device": {
+            "href": "/device/15"
+          },
+          "Contents": [
+            {
+              "Type": "CCA",
+              "OS": {
+                "Firmware": {
+                  "DisplayName": "001.053.000r000"
+                }
+              }
+            }
+          ]
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/1"
+        },
+        "LoadControllers": [
+          {
+            "href": "/loadcontroller/12"
+          }
+        ]
+      },
+      {
+        "Name": "Pico 3",
+        "DeviceType": "Pico3ButtonRaiseLower",
+        "AssociatedArea": {
+          "href": "/area/4"
+        },
+        "href": "/device/17",
+        "SerialNumber": 20000017,
+        "FullyQualifiedName": [
+          "Area 3",
+          "Pico 3"
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "PJ2-3BRL-GXX-X01",
+        "ProductId": "17235974",
+        "ButtonGroups": [
+          {
+            "href": "/buttongroup/4"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/17/linknode/17"
+          }
+        ],
+        "DeviceRules": [
+          {
+            "href": "/devicerule/25"
+          }
+        ],
+        "FirmwareImage": {
+          "href": "/firmwareimage/17",
+          "Device": {
+            "href": "/device/17"
+          },
+          "Contents": [
+            {
+              "Type": "CCA",
+              "OS": {
+                "Firmware": {
+                  "DisplayName": "000.000.000r000"
+                }
+              }
+            }
+          ]
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/1"
+        }
+      },
+      {
+        "Name": "Plug 1",
+        "DeviceType": "OutdoorPlugInSwitch",
+        "AssociatedArea": {
+          "href": "/area/15"
+        },
+        "href": "/device/18",
+        "SerialNumber": 20000018,
+        "FullyQualifiedName": [
+          "Area 14",
+          "Plug 1"
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "PD-15OUT",
+        "ProductId": "73072640",
+        "LocalZones": [
+          {
+            "href": "/zone/14"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/18/linknode/18"
+          }
+        ],
+        "DeviceRules": [
+          {
+            "href": "/devicerule/136"
+          }
+        ],
+        "FirmwareImage": {
+          "href": "/firmwareimage/18",
+          "Device": {
+            "href": "/device/18"
+          },
+          "Contents": [
+            {
+              "Type": "CCA",
+              "OS": {
+                "Firmware": {
+                  "DisplayName": "001.021.000r000"
+                }
+              }
+            }
+          ]
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/1"
+        },
+        "LoadControllers": [
+          {
+            "href": "/loadcontroller/14"
+          }
+        ]
+      },
+      {
+        "Name": "Dimmer 12",
+        "DeviceType": "WallDimmer",
+        "AssociatedArea": {
+          "href": "/area/10"
+        },
+        "href": "/device/19",
+        "SerialNumber": 20000019,
+        "FullyQualifiedName": [
+          "Area 9",
+          "Dimmer 12"
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "PD-6WCL-XX",
+        "ProductId": "70386688",
+        "LocalZones": [
+          {
+            "href": "/zone/15"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/19/linknode/19"
+          }
+        ],
+        "DeviceRules": [
+          {
+            "href": "/devicerule/157"
+          }
+        ],
+        "FirmwareImage": {
+          "href": "/firmwareimage/19",
+          "Device": {
+            "href": "/device/19"
+          },
+          "Contents": [
+            {
+              "Type": "CCA",
+              "OS": {
+                "Firmware": {
+                  "DisplayName": "001.051.000r000"
+                }
+              }
+            }
+          ]
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/1"
+        },
+        "LoadControllers": [
+          {
+            "href": "/loadcontroller/15"
+          }
+        ]
+      },
+      {
+        "Name": "Dimmer 13",
+        "DeviceType": "WallDimmer",
+        "AssociatedArea": {
+          "href": "/area/18"
+        },
+        "href": "/device/21",
+        "SerialNumber": 20000021,
+        "FullyQualifiedName": [
+          "Area 17",
+          "Dimmer 13"
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "PD-6WCL-XX",
+        "ProductId": "70386688",
+        "LocalZones": [
+          {
+            "href": "/zone/17"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/21/linknode/21"
+          }
+        ],
+        "DeviceRules": [
+          {
+            "href": "/devicerule/157"
+          }
+        ],
+        "FirmwareImage": {
+          "href": "/firmwareimage/21",
+          "Device": {
+            "href": "/device/21"
+          },
+          "Contents": [
+            {
+              "Type": "CCA",
+              "OS": {
+                "Firmware": {
+                  "DisplayName": "001.051.000r000"
+                }
+              }
+            }
+          ]
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/1"
+        },
+        "LoadControllers": [
+          {
+            "href": "/loadcontroller/17"
+          }
+        ]
+      },
+      {
+        "Name": "Switch 2",
+        "DeviceType": "WallSwitch",
+        "AssociatedArea": {
+          "href": "/area/18"
+        },
+        "href": "/device/22",
+        "SerialNumber": 20000022,
+        "FullyQualifiedName": [
+          "Area 17",
+          "Switch 2"
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "PD-8ANS-XX",
+        "ProductId": "71434240",
+        "LocalZones": [
+          {
+            "href": "/zone/18"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/22/linknode/22"
+          }
+        ],
+        "DeviceRules": [
+          {
+            "href": "/devicerule/44"
+          }
+        ],
+        "FirmwareImage": {
+          "href": "/firmwareimage/22",
+          "Device": {
+            "href": "/device/22"
+          },
+          "Contents": [
+            {
+              "Type": "CCA",
+              "OS": {
+                "Firmware": {
+                  "DisplayName": "001.053.000r000"
+                }
+              }
+            }
+          ]
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/1"
+        },
+        "LoadControllers": [
+          {
+            "href": "/loadcontroller/18"
+          }
+        ]
+      },
+      {
+        "Name": "Dimmer 14",
+        "DeviceType": "WallDimmer",
+        "AssociatedArea": {
+          "href": "/area/4"
+        },
+        "href": "/device/23",
+        "SerialNumber": 20000023,
+        "FullyQualifiedName": [
+          "Area 3",
+          "Dimmer 14"
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "PD-6WCL-XX",
+        "ProductId": "70386688",
+        "LocalZones": [
+          {
+            "href": "/zone/19"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/23/linknode/23"
+          }
+        ],
+        "DeviceRules": [
+          {
+            "href": "/devicerule/157"
+          }
+        ],
+        "FirmwareImage": {
+          "href": "/firmwareimage/23",
+          "Device": {
+            "href": "/device/23"
+          },
+          "Contents": [
+            {
+              "Type": "CCA",
+              "OS": {
+                "Firmware": {
+                  "DisplayName": "001.018.000r000"
+                }
+              }
+            }
+          ]
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/1"
+        },
+        "LoadControllers": [
+          {
+            "href": "/loadcontroller/19"
+          }
+        ]
+      }
+    ]
+  }
+}
