@@ -98,6 +98,7 @@ type Bridge struct {
 	authority *authority
 	bootstrap *authority
 	app       tls.Certificate
+	appPEM    [2][]byte
 	leap      net.Listener
 	pairing   net.Listener
 	pressed   chan struct{}
@@ -120,7 +121,7 @@ func New() *Bridge {
 		pressed:   make(chan struct{}),
 		resources: map[string]resource{},
 	}
-	bridge.app = bridge.bootstrap.issue("the app", x509.ExtKeyUsageClientAuth)
+	bridge.app, bridge.appPEM = bridge.bootstrap.issuePEM("the app", x509.ExtKeyUsageClientAuth)
 
 	bridge.leap = listen(&tls.Config{
 		MinVersion:   tls.VersionTLS12,
@@ -158,6 +159,13 @@ func (b *Bridge) Bootstrap() *tls.Config {
 		RootCAs:      b.bootstrap.pool(),
 		ServerName:   "bridge",
 	}
+}
+
+// BootstrapPEM is the identity Bootstrap carries, as the three PEM blocks
+// a client reading it from files needs: the app's certificate, its key,
+// and the root the pairing port's certificate chains to.
+func (b *Bridge) BootstrapPEM() (certificate, key, root []byte) {
+	return b.appPEM[0], b.appPEM[1], b.bootstrap.pem()
 }
 
 // Credentials issues credentials the LEAP port takes, without a pairing.
@@ -563,6 +571,13 @@ func (a *authority) sign(name string, public any, usage x509.ExtKeyUsage) []byte
 
 // issue makes a key and a certificate for it, ready for a tls.Config.
 func (a *authority) issue(name string, usage x509.ExtKeyUsage) tls.Certificate {
+	certificate, _ := a.issuePEM(name, usage)
+
+	return certificate
+}
+
+// issuePEM is issue, with the certificate and the key as PEM beside it.
+func (a *authority) issuePEM(name string, usage x509.ExtKeyUsage) (tls.Certificate, [2][]byte) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		panic(err)
@@ -573,13 +588,15 @@ func (a *authority) issue(name string, usage x509.ExtKeyUsage) tls.Certificate {
 		panic(err)
 	}
 
-	certificate, err := tls.X509KeyPair(
+	blocks := [2][]byte{
 		a.sign(name, &key.PublicKey, usage),
 		pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: der}),
-	)
+	}
+
+	certificate, err := tls.X509KeyPair(blocks[0], blocks[1])
 	if err != nil {
 		panic(err)
 	}
 
-	return certificate
+	return certificate, blocks
 }
