@@ -530,3 +530,51 @@ func TestFirmwareShapes(t *testing.T) {
 		t.Fatalf("a device whose name is a number: %v", err)
 	}
 }
+
+// TestFindZone: an id, a name, a name with its area, a name two rooms
+// share, and a name nothing has.
+func TestFindZone(t *testing.T) {
+	t.Parallel()
+
+	device := func(room, name, zone string) caseta.Device {
+		return caseta.Device{
+			Name: name, FullyQualifiedName: []string{room, name},
+			LocalZones: []caseta.Ref{{Href: "/zone/" + zone}},
+		}
+	}
+
+	devices := []caseta.Device{
+		device("Kitchen", "Main Lights", "1"), device("Bedroom", "Main Lights", "5"),
+		device("Hall", "Lamp", "7"),
+		{Name: "Pico", FullyQualifiedName: []string{"Hall", "Pico"}},
+		// A device named like another's zone: the id is what "5" means.
+		device("Attic", "5", "9"),
+	}
+
+	for target, want := range map[string]caseta.Zone{
+		"7":                   {ID: "7", Name: "Hall Lamp"},
+		"lamp":                {ID: "7", Name: "Hall Lamp"},
+		"hall LAMP":           {ID: "7", Name: "Hall Lamp"},
+		"Bedroom Main Lights": {ID: "5", Name: "Bedroom Main Lights"},
+		// An id wins over a name: zone 5, whatever is called "5".
+		"5": {ID: "5", Name: "Bedroom Main Lights"},
+	} {
+		got, err := caseta.FindZone(devices, target)
+		if err != nil || got != want {
+			t.Fatalf("%q: %+v, %v", target, got, err)
+		}
+	}
+
+	_, err := caseta.FindZone(devices, "Main Lights")
+	if !errors.Is(err, caseta.ErrSeveralZones) ||
+		!strings.Contains(err.Error(), `"Kitchen Main Lights" (zone 1), "Bedroom Main Lights" (zone 5)`) {
+		t.Fatalf("a name two rooms share: %v", err)
+	}
+
+	// A device with no zone is not found by its name: a Pico drives none.
+	for _, target := range []string{"Pico", "Garage", ""} {
+		if _, err = caseta.FindZone(devices, target); !errors.Is(err, caseta.ErrNoZone) {
+			t.Fatalf("%q: %v", target, err)
+		}
+	}
+}

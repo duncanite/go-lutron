@@ -37,8 +37,6 @@ const (
 )
 
 var (
-	errNoZone   = errors.New("no zone by that id or name")
-	errSeveral  = errors.New("several zones by that name; say the room too, or the zone's id")
 	errNotJSON  = errors.New("the body is not JSON")
 	errIdentity = errors.New("--app-certificate, --app-key and --app-root go together")
 )
@@ -190,40 +188,19 @@ func (root *rootCommand) with(ctx context.Context, visit func(context.Context, *
 	return visit(ctx, bridge)
 }
 
-// zone resolves a target to a zone's id. A zone's id wins; otherwise the
-// target is a device's name, with or without its area, and has to fit
-// one zone: a name two rooms share is refused with the zones it fits.
+// zone resolves a target to a zone's id through the bridge's devices.
 func zone(ctx context.Context, bridge *caseta.Bridge, target string) (string, error) {
 	devices, err := bridge.Devices(ctx)
 	if err != nil {
 		return "", err
 	}
 
-	var ids, named []string
-
-	for _, device := range devices {
-		full := strings.Join(device.FullyQualifiedName, " ")
-
-		for _, driven := range device.LocalZones {
-			if driven.ID() == target {
-				return target, nil
-			}
-
-			if strings.EqualFold(device.Name, target) || strings.EqualFold(full, target) {
-				ids = append(ids, driven.ID())
-				named = append(named, fmt.Sprintf("%q (zone %s)", full, driven.ID()))
-			}
-		}
+	found, err := caseta.FindZone(devices, target)
+	if err != nil {
+		return "", err
 	}
 
-	switch len(ids) {
-	case 0:
-		return "", fmt.Errorf("%w: %q", errNoZone, target)
-	case 1:
-		return ids[0], nil
-	default:
-		return "", fmt.Errorf("%w: %q fits %s", errSeveral, target, strings.Join(named, ", "))
-	}
+	return found.ID, nil
 }
 
 // onZone resolves the target and runs act on the zone.
