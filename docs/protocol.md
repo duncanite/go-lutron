@@ -7,9 +7,10 @@ and gives its documentation to approved partners only. Everything below is read 
 open implementations that reverse-engineered it, first among them
 [pylutron-caseta](https://github.com/gurumitts/pylutron-caseta), the library Home
 Assistant uses, with its recorded answers under `tests/responses`, and
-[lutron-leap-js](https://github.com/thenewwazoo/lutron-leap-js). **None of it has been run
-against a bridge from this repository yet.** Where a statement is this module's assumption
-and not something those sources show, it says so.
+[lutron-leap-js](https://github.com/thenewwazoo/lutron-leap-js). Part of it has since been
+run against one bridge, as [Run against a bridge](#run-against-a-bridge) lists; the rest
+has not. Where a statement is this module's assumption and not something those sources or
+that run show, it says so.
 
 ## Which bridges
 
@@ -95,9 +96,9 @@ Lutron's root and not the app's authority, pylutron-caseta discards the root the
 processor answers with and keeps Lutron's root for port 8081. This module's `Pair` keeps
 what is answered, always, and has not been written for a processor.
 
-This module's `Pair` takes a connection already made to port 8083; it does not carry the
-app's identity itself. Whether this repository should is a decision not yet taken: it is
-a private key Lutron ships in its app, published in other projects' source.
+This module's `Pair` takes a connection already made to port 8083, and `CasetaApp` is
+the identity to make it with for a Caséta bridge: Lutron's, copied from pylutron-caseta,
+as [leap/identity](../leap/identity/README.md) says.
 
 ## What a Caséta bridge holds
 
@@ -153,3 +154,32 @@ The subscriptions a Caséta bridge does take:
 | `/button/<id>/status/event` | `ButtonStatus.ButtonEvent.EventType`, `Press` or `Release`; the subscription itself answers `204 NoContent` |
 | `/occupancygroup/status` | occupancy groups' states |
 | `/system/away/1/status` | Smart Away |
+
+## Run against a bridge
+
+On 2026-11-14 the command of this module was run against one bridge: a Caséta Smart
+Bridge, model `L-BDG2-WH`, answering LEAP version 1.124, holding seventeen zones (wall
+dimmers, wall switches, an outdoor plug-in switch) and three five-button Pico remotes.
+
+What worked, each as this document describes it:
+
+- The pairing port presents a certificate with subject `CN=Caseta Smart Bridge`, issued
+  by `CN=Caseta Local Access Protocol Cert Authority`, naming a server's use and a
+  client's. Pairing under the identity in [leap/identity](../leap/identity/README.md),
+  with the button pressed, gave credentials that port 8081 took.
+- `/server/1/status/ping`, `/device` and `/button` read into this module's types: every
+  device with its type, model and serial, every load with its zone, each Pico with five
+  buttons numbered 0 to 4. Device and zone numbers are not contiguous.
+- `/zone/<id>/status` for each of the seventeen zones.
+- A zone's change arrived with no tag, on a connection that had read that zone first.
+  Whether it arrives on one that had not was not tried.
+- A subscription to `/button/<id>/status/event`, for each of the fifteen buttons: a
+  press arrives as `Press`, then `Release`. On the Pico tried, button number 0 turned
+  its light on and number 2 turned it off.
+- `GoToLevel` to a dimmer's zone, to 30 and to 0: the light followed.
+
+What was not tried: `GoToDimmedLevel` and a fade, `Raise`, `Lower` and `Stop`, pressing a
+button or running a scene by command, Smart Away, occupancy groups, a request for a URL
+the bridge lacks, pairing without the identity, and a signing request sent before the
+button. `/virtualbutton` listed no programmed scene, and whether that bridge has none was
+not established.

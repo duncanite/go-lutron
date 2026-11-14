@@ -1,9 +1,11 @@
 # go-lutron: the design
 
 A Go module and one command, `lutron`, for a Lutron Caséta bridge over LEAP
-([protocol.md](protocol.md)). Run from the bridge's network. **Nothing here has been run
-against a bridge yet**: the protocol is the open implementations', and the tests run
-against a bridge of this module's own making that answers as their recorded answers read.
+([protocol.md](protocol.md)). Run from the bridge's network. The protocol is the open
+implementations', and the tests run against a bridge of this module's own making that
+answers as their recorded answers read. The command has been run against one Caséta
+Smart Bridge, and [protocol.md](protocol.md#run-against-a-bridge) lists what worked there
+and what was not tried.
 
 ## Shape
 
@@ -41,10 +43,15 @@ against a bridge of this module's own making that answers as their recorded answ
 - **The context bounds the write.** A bridge that stops reading would otherwise hold the
   connection's one writer for good. A write the context cuts short ends the connection,
   since half a line may be on the wire.
-- **The app's identity is not in this repository.** The pairing port takes only a client
-  carrying the certificate of Lutron's app. Other projects publish that certificate and
-  its key in their source. `Pair` takes a connection made with it, and the command takes
-  it as three files; whether to carry it here is a decision left open.
+- **The Caséta app's identity is carried.** The open implementations present one
+  certificate and key, Lutron's, to every Caséta bridge's pairing port, and publish them
+  in their source. They are embedded, with
+  a note beside them saying they are Lutron's, where they were copied from, and that they
+  go from the repository at Lutron's request. The key is no secret but not nothing: its
+  certificate also names a server's use, so its holder can stand in for a pairing port.
+  The button on the bridge and the network guard a pairing, not the check of that port's
+  certificate. `pair` takes another identity as three files, which is how a processor's
+  would be given.
 - **Ids are checked before they become URLs.** A zone, a button or a scene is addressed
   by an id spliced into a URL; one that is empty or holds a `/` or a `?` is refused
   before any request.

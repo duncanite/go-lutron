@@ -672,3 +672,59 @@ func TestAClientIsNotTheBridge(t *testing.T) {
 		t.Fatalf("a paired client's certificate, served: %v", err)
 	}
 }
+
+// TestTheCasetaIdentity: the embedded key and certificate are a pair,
+// and the certificate verifies to the embedded root for a server's use
+// under TLSConfig, as a pairing port's has to.
+func TestTheCasetaIdentity(t *testing.T) {
+	t.Parallel()
+
+	app := leap.CasetaApp()
+
+	// The app's certificate names a server's use beside a client's, so
+	// it can stand in for the pairing port's.
+	served, err := tls.X509KeyPair(app.Certificate, app.Key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	listener, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config{
+		MinVersion: tls.VersionTLS12, Certificates: []tls.Certificate{served},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() { _ = listener.Close() })
+
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			return
+		}
+
+		_, _ = conn.Read(make([]byte, 1))
+		_ = conn.Close()
+	}()
+
+	config, err := leap.TLSConfig(app)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	conn, err := (&tls.Dialer{Config: config}).DialContext(t.Context(), "tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatalf("a certificate of the Caseta pairing root, served: %v", err)
+	}
+
+	_ = conn.Close()
+
+	// Each call hands out its own copy, of all three.
+	app.Key[0] ^= 0xff
+	app.Certificate[0] ^= 0xff
+	app.Root[0] ^= 0xff
+
+	if _, err = leap.TLSConfig(leap.CasetaApp()); err != nil {
+		t.Fatalf("the identity after a caller changed its copy: %v", err)
+	}
+}

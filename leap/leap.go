@@ -7,8 +7,9 @@
 // button is: this is the wire, for the package above to give meaning to.
 //
 // Lutron publishes no description of LEAP. What is here is what the open
-// implementations send and what their recorded answers hold; it has not
-// been run against a bridge.
+// implementations send and what their recorded answers hold. Pairing,
+// requests, subscriptions and unsolicited messages have been run against
+// one Smart Bridge; docs/protocol.md lists what was and was not.
 package leap
 
 import (
