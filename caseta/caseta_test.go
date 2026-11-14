@@ -51,7 +51,7 @@ func bridge(t *testing.T) (*leaptest.Bridge, *caseta.Bridge) {
 	return fake, opened
 }
 
-// TestWhatTheBridgeHolds: the recorded answers of a Caseta bridge, read
+// TestWhatTheBridgeHolds: pylutron-caseta's fixtures for a Caseta bridge, read
 // into the package's types.
 func TestWhatTheBridgeHolds(t *testing.T) {
 	t.Parallel()

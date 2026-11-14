@@ -6,7 +6,9 @@ protocol](https://support.lutron.com/us/en/product/radiora3/article/integration/
 and gives its documentation to approved partners only. Everything below is read from the
 open implementations that reverse-engineered it, first among them
 [pylutron-caseta](https://github.com/gurumitts/pylutron-caseta), the library Home
-Assistant uses, with its recorded answers under `tests/responses`, and
+Assistant uses, with the answers its tests replay, under `tests/responses` (called its
+recorded answers below, though it does not say how they were made: most of their
+identifiers are placeholders, one serial reads as real), and
 [lutron-leap-js](https://github.com/thenewwazoo/lutron-leap-js). Part of it has since been
 run against one bridge, as [Run against a bridge](#run-against-a-bridge) lists; the rest
 has not. Where a statement is this module's assumption and not something those sources or
