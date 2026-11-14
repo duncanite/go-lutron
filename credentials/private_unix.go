@@ -1,6 +1,6 @@
 //go:build !windows
 
-package cli
+package credentials
 
 // private makes the file at path readable by its owner alone. The mode it
 // was made with already says so here.

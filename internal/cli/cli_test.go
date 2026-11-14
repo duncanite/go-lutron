@@ -207,7 +207,7 @@ func TestTheErrors(t *testing.T) {
 		{dir, []string{"call", "ReadRequest", "/nothing"}, "the bridge refused the request"},
 		{dir, []string{"call", "CreateRequest", "/zone/1/commandprocessor", "{not json"}, "the body is not JSON"},
 		{dir, []string{"call", "DeleteRequest", "/zone/1"}, "must be one of"},
-		{t.TempDir(), []string{"ping"}, "reading the credentials, which pair writes"},
+		{t.TempDir(), []string{"ping"}, "pair writes them"},
 		{stranger, []string{"ping"}, "the credentials are not usable"},
 	} {
 		out, status := run(t.Context(), bridge, step.dir, step.args...)
