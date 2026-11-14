@@ -183,5 +183,11 @@ What worked, each as this document describes it:
 What was not tried: `GoToDimmedLevel` and a fade, `Raise`, `Lower` and `Stop`, pressing a
 button or running a scene by command, Smart Away, occupancy groups, a request for a URL
 the bridge lacks, pairing without the identity, and a signing request sent before the
-button. `/virtualbutton` listed no programmed scene, and whether that bridge has none was
-not established.
+button. That bridge has no programmed scene: `/virtualbutton` answers a hundred slots
+under Lutron's default names, each with `IsProgrammed` false.
+
+Its answers for `/device`, `/area`, `/button`, `/virtualbutton` and one zone's status are
+kept as fixtures, names and serials replaced, under
+[caseta/testdata/smartbridge](../caseta/testdata/smartbridge/README.md). A real answer
+carries many keys the tables above do not list: a device's firmware, links, load
+controllers and rules, an area's category and settings.

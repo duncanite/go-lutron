@@ -17,6 +17,9 @@ import (
 //go:embed testdata/*.json
 var recorded embed.FS
 
+//go:embed testdata/smartbridge/*.json
+var captured embed.FS
+
 const wait = 30 * time.Second
 
 // bridge starts a test bridge holding the recorded answers, and opens
@@ -305,5 +308,124 @@ func TestOpenTakesLeapsPort(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), "the bridge at "+dialled) {
 			t.Fatalf("%s: %v, want a dial of %s", host, err, dialled)
 		}
+	}
+}
+
+// TestARealBridge: the answers of a Smart Bridge, its names and serials
+// replaced, read into the package's types. What a real bridge sends has
+// far more keys than the types name, and gaps in its numbering.
+func TestARealBridge(t *testing.T) {
+	t.Parallel()
+
+	fake := leaptest.New()
+	t.Cleanup(fake.Close)
+
+	for _, name := range []string{"device", "area", "button", "virtualbutton", "zone-1-status"} {
+		raw, err := captured.ReadFile("testdata/smartbridge/" + name + ".json")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var answer leap.Message
+		if err = json.Unmarshal(raw, &answer); err != nil {
+			t.Fatal(err)
+		}
+
+		fake.Set(answer.Header.URL, answer.Header.MessageBodyType, answer.Body)
+	}
+
+	opened, err := caseta.Open(t.Context(), fake.Addr(), fake.Credentials())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() { _ = opened.Close() })
+
+	devices, err := opened.Devices(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	kinds := map[string]int{}
+	zones := map[string]bool{}
+	groups := map[string]string{}
+
+	for _, device := range devices {
+		kinds[device.DeviceType]++
+
+		if device.Name == "" || device.ModelNumber == "" || device.SerialNumber == 0 ||
+			len(device.FullyQualifiedName) == 0 {
+			t.Fatalf("a device read short: %+v", device)
+		}
+
+		for _, zone := range device.LocalZones {
+			zones[zone.ID()] = true
+		}
+
+		for _, group := range device.ButtonGroups {
+			groups[group.Href] = device.Name
+		}
+	}
+
+	if len(devices) != 21 || kinds["SmartBridge"] != 1 || kinds["WallDimmer"] != 14 || kinds["WallSwitch"] != 2 ||
+		kinds["OutdoorPlugInSwitch"] != 1 || kinds["Pico3ButtonRaiseLower"] != 3 {
+		t.Fatalf("devices: %d, %v", len(devices), kinds)
+	}
+
+	// Seventeen zones, numbered to nineteen: two numbers are not there.
+	if len(zones) != 17 || !zones["1"] || !zones["19"] || zones["13"] || zones["16"] {
+		t.Fatalf("zones: %v", zones)
+	}
+
+	if self := devices[0]; self.Name != "Smart Bridge" || self.ModelNumber != "L-BDG2-WH" ||
+		self.AssociatedArea != nil || len(self.LocalZones) != 0 {
+		t.Fatalf("the bridge itself: %+v", self)
+	}
+
+	buttons, err := opened.Buttons(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	perPico := map[string][]int{}
+
+	for _, button := range buttons {
+		pico, known := groups[button.Parent.Href]
+		if !known {
+			t.Fatalf("a button of no device: %+v", button)
+		}
+
+		perPico[pico] = append(perPico[pico], button.ButtonNumber)
+	}
+
+	if len(buttons) != 15 || len(perPico) != 3 {
+		t.Fatalf("buttons: %d on %d Picos", len(buttons), len(perPico))
+	}
+
+	for pico, numbers := range perPico {
+		if len(numbers) != 5 || numbers[0] != 0 || numbers[4] != 4 {
+			t.Fatalf("%s: buttons %v", pico, numbers)
+		}
+	}
+
+	areas, err := opened.Areas(t.Context())
+	if err != nil || len(areas) != 18 || areas[0].Name != "Home" {
+		t.Fatalf("areas: %v, %d", err, len(areas))
+	}
+
+	scenes, err := opened.Scenes(t.Context())
+	if err != nil || len(scenes) != 100 {
+		t.Fatalf("scenes: %v, %d", err, len(scenes))
+	}
+
+	for _, scene := range scenes {
+		if scene.IsProgrammed {
+			t.Fatalf("a programmed scene on a bridge that has none: %+v", scene)
+		}
+	}
+
+	status, err := opened.Zone(t.Context(), "1")
+	if err != nil || status.Level == nil || *status.Level != 100 || status.Zone.ID() != "1" {
+		t.Fatalf("zone 1: %v, %+v", err, status)
 	}
 }

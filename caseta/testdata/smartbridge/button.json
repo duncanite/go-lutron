@@ -1,0 +1,178 @@
+{
+  "CommuniqueType": "ReadResponse",
+  "Header": {
+    "ClientTag": "go-1",
+    "Url": "/button",
+    "StatusCode": "200 OK",
+    "MessageBodyType": "MultipleButtonDefinition"
+  },
+  "Body": {
+    "Buttons": [
+      {
+        "href": "/button/101",
+        "ButtonNumber": 0,
+        "ProgrammingModel": {
+          "href": "/programmingmodel/133"
+        },
+        "Parent": {
+          "href": "/buttongroup/2"
+        },
+        "Name": "Button 1"
+      },
+      {
+        "href": "/button/102",
+        "ButtonNumber": 1,
+        "ProgrammingModel": {
+          "href": "/programmingmodel/134"
+        },
+        "Parent": {
+          "href": "/buttongroup/2"
+        },
+        "Name": "Button 2"
+      },
+      {
+        "href": "/button/103",
+        "ButtonNumber": 2,
+        "ProgrammingModel": {
+          "href": "/programmingmodel/135"
+        },
+        "Parent": {
+          "href": "/buttongroup/2"
+        },
+        "Name": "Button 3"
+      },
+      {
+        "href": "/button/104",
+        "ButtonNumber": 3,
+        "ProgrammingModel": {
+          "href": "/programmingmodel/136"
+        },
+        "Parent": {
+          "href": "/buttongroup/2"
+        },
+        "Name": "Button 4"
+      },
+      {
+        "href": "/button/105",
+        "ButtonNumber": 4,
+        "ProgrammingModel": {
+          "href": "/programmingmodel/137"
+        },
+        "Parent": {
+          "href": "/buttongroup/2"
+        },
+        "Name": "Button 5"
+      },
+      {
+        "href": "/button/106",
+        "ButtonNumber": 0,
+        "ProgrammingModel": {
+          "href": "/programmingmodel/148"
+        },
+        "Parent": {
+          "href": "/buttongroup/3"
+        },
+        "Name": "Button 1"
+      },
+      {
+        "href": "/button/107",
+        "ButtonNumber": 1,
+        "ProgrammingModel": {
+          "href": "/programmingmodel/149"
+        },
+        "Parent": {
+          "href": "/buttongroup/3"
+        },
+        "Name": "Button 2"
+      },
+      {
+        "href": "/button/108",
+        "ButtonNumber": 2,
+        "ProgrammingModel": {
+          "href": "/programmingmodel/150"
+        },
+        "Parent": {
+          "href": "/buttongroup/3"
+        },
+        "Name": "Button 3"
+      },
+      {
+        "href": "/button/109",
+        "ButtonNumber": 3,
+        "ProgrammingModel": {
+          "href": "/programmingmodel/151"
+        },
+        "Parent": {
+          "href": "/buttongroup/3"
+        },
+        "Name": "Button 4"
+      },
+      {
+        "href": "/button/110",
+        "ButtonNumber": 4,
+        "ProgrammingModel": {
+          "href": "/programmingmodel/152"
+        },
+        "Parent": {
+          "href": "/buttongroup/3"
+        },
+        "Name": "Button 5"
+      },
+      {
+        "href": "/button/111",
+        "ButtonNumber": 0,
+        "ProgrammingModel": {
+          "href": "/programmingmodel/153"
+        },
+        "Parent": {
+          "href": "/buttongroup/4"
+        },
+        "Name": "Button 1"
+      },
+      {
+        "href": "/button/112",
+        "ButtonNumber": 1,
+        "ProgrammingModel": {
+          "href": "/programmingmodel/154"
+        },
+        "Parent": {
+          "href": "/buttongroup/4"
+        },
+        "Name": "Button 2"
+      },
+      {
+        "href": "/button/113",
+        "ButtonNumber": 2,
+        "ProgrammingModel": {
+          "href": "/programmingmodel/155"
+        },
+        "Parent": {
+          "href": "/buttongroup/4"
+        },
+        "Name": "Button 3"
+      },
+      {
+        "href": "/button/114",
+        "ButtonNumber": 3,
+        "ProgrammingModel": {
+          "href": "/programmingmodel/156"
+        },
+        "Parent": {
+          "href": "/buttongroup/4"
+        },
+        "Name": "Button 4"
+      },
+      {
+        "href": "/button/115",
+        "ButtonNumber": 4,
+        "ProgrammingModel": {
+          "href": "/programmingmodel/157"
+        },
+        "Parent": {
+          "href": "/buttongroup/4"
+        },
+        "Name": "Button 5"
+      }
+    ]
+  }
+}

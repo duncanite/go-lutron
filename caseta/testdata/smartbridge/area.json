@@ -1,0 +1,579 @@
+{
+  "CommuniqueType": "ReadResponse",
+  "Header": {
+    "ClientTag": "go-1",
+    "Url": "/area",
+    "StatusCode": "200 OK",
+    "MessageBodyType": "MultipleAreaDefinition"
+  },
+  "Body": {
+    "Areas": [
+      {
+        "href": "/area/1",
+        "Name": "Home",
+        "LoadShedding": {
+          "href": "/area/1/loadshedding"
+        },
+        "IsLeaf": false
+      },
+      {
+        "href": "/area/2",
+        "Name": "Area 1",
+        "Parent": {
+          "href": "/area/1"
+        },
+        "Category": {
+          "Type": "Hallway"
+        },
+        "AssociatedOccupancyGroups": [
+          {
+            "href": "/occupancygroup/1"
+          }
+        ],
+        "LoadShedding": {
+          "href": "/area/2/loadshedding"
+        },
+        "OccupancySettings": {
+          "href": "/area/2/occupancysettings"
+        },
+        "OccupancySensorSettings": {
+          "href": "/area/2/occupancysensorsettings"
+        },
+        "DaylightingGainSettings": {
+          "href": "/area/2/daylightinggainsettings"
+        },
+        "IsLeaf": true
+      },
+      {
+        "href": "/area/3",
+        "Name": "Area 2",
+        "Parent": {
+          "href": "/area/1"
+        },
+        "Category": {
+          "Type": "Hallway"
+        },
+        "AssociatedOccupancyGroups": [
+          {
+            "href": "/occupancygroup/2"
+          }
+        ],
+        "LoadShedding": {
+          "href": "/area/3/loadshedding"
+        },
+        "OccupancySettings": {
+          "href": "/area/3/occupancysettings"
+        },
+        "OccupancySensorSettings": {
+          "href": "/area/3/occupancysensorsettings"
+        },
+        "DaylightingGainSettings": {
+          "href": "/area/3/daylightinggainsettings"
+        },
+        "IsLeaf": true
+      },
+      {
+        "href": "/area/4",
+        "Name": "Area 3",
+        "Parent": {
+          "href": "/area/1"
+        },
+        "Category": {
+          "Type": "Hallway"
+        },
+        "AssociatedDevices": [
+          {
+            "href": "/device/6"
+          },
+          {
+            "href": "/device/14"
+          },
+          {
+            "href": "/device/15"
+          },
+          {
+            "href": "/device/17"
+          },
+          {
+            "href": "/device/23"
+          }
+        ],
+        "AssociatedOccupancyGroups": [
+          {
+            "href": "/occupancygroup/3"
+          }
+        ],
+        "LoadShedding": {
+          "href": "/area/4/loadshedding"
+        },
+        "OccupancySettings": {
+          "href": "/area/4/occupancysettings"
+        },
+        "OccupancySensorSettings": {
+          "href": "/area/4/occupancysensorsettings"
+        },
+        "DaylightingGainSettings": {
+          "href": "/area/4/daylightinggainsettings"
+        },
+        "IsLeaf": true
+      },
+      {
+        "href": "/area/5",
+        "Name": "Area 4",
+        "Parent": {
+          "href": "/area/1"
+        },
+        "Category": {
+          "Type": "Hallway"
+        },
+        "AssociatedDevices": [
+          {
+            "href": "/device/4"
+          }
+        ],
+        "AssociatedOccupancyGroups": [
+          {
+            "href": "/occupancygroup/4"
+          }
+        ],
+        "LoadShedding": {
+          "href": "/area/5/loadshedding"
+        },
+        "OccupancySettings": {
+          "href": "/area/5/occupancysettings"
+        },
+        "OccupancySensorSettings": {
+          "href": "/area/5/occupancysensorsettings"
+        },
+        "DaylightingGainSettings": {
+          "href": "/area/5/daylightinggainsettings"
+        },
+        "IsLeaf": true
+      },
+      {
+        "href": "/area/6",
+        "Name": "Area 5",
+        "Parent": {
+          "href": "/area/1"
+        },
+        "Category": {
+          "Type": "Hallway"
+        },
+        "AssociatedOccupancyGroups": [
+          {
+            "href": "/occupancygroup/5"
+          }
+        ],
+        "LoadShedding": {
+          "href": "/area/6/loadshedding"
+        },
+        "OccupancySettings": {
+          "href": "/area/6/occupancysettings"
+        },
+        "OccupancySensorSettings": {
+          "href": "/area/6/occupancysensorsettings"
+        },
+        "DaylightingGainSettings": {
+          "href": "/area/6/daylightinggainsettings"
+        },
+        "IsLeaf": true
+      },
+      {
+        "href": "/area/7",
+        "Name": "Area 6",
+        "Parent": {
+          "href": "/area/1"
+        },
+        "Category": {
+          "Type": "Hallway"
+        },
+        "AssociatedDevices": [
+          {
+            "href": "/device/8"
+          }
+        ],
+        "AssociatedOccupancyGroups": [
+          {
+            "href": "/occupancygroup/6"
+          }
+        ],
+        "LoadShedding": {
+          "href": "/area/7/loadshedding"
+        },
+        "OccupancySettings": {
+          "href": "/area/7/occupancysettings"
+        },
+        "OccupancySensorSettings": {
+          "href": "/area/7/occupancysensorsettings"
+        },
+        "DaylightingGainSettings": {
+          "href": "/area/7/daylightinggainsettings"
+        },
+        "IsLeaf": true
+      },
+      {
+        "href": "/area/8",
+        "Name": "Area 7",
+        "Parent": {
+          "href": "/area/1"
+        },
+        "Category": {
+          "Type": "Hallway"
+        },
+        "AssociatedOccupancyGroups": [
+          {
+            "href": "/occupancygroup/7"
+          }
+        ],
+        "LoadShedding": {
+          "href": "/area/8/loadshedding"
+        },
+        "OccupancySettings": {
+          "href": "/area/8/occupancysettings"
+        },
+        "OccupancySensorSettings": {
+          "href": "/area/8/occupancysensorsettings"
+        },
+        "DaylightingGainSettings": {
+          "href": "/area/8/daylightinggainsettings"
+        },
+        "IsLeaf": true
+      },
+      {
+        "href": "/area/9",
+        "Name": "Area 8",
+        "Parent": {
+          "href": "/area/1"
+        },
+        "Category": {
+          "Type": "Hallway"
+        },
+        "AssociatedOccupancyGroups": [
+          {
+            "href": "/occupancygroup/8"
+          }
+        ],
+        "LoadShedding": {
+          "href": "/area/9/loadshedding"
+        },
+        "OccupancySettings": {
+          "href": "/area/9/occupancysettings"
+        },
+        "OccupancySensorSettings": {
+          "href": "/area/9/occupancysensorsettings"
+        },
+        "DaylightingGainSettings": {
+          "href": "/area/9/daylightinggainsettings"
+        },
+        "IsLeaf": true
+      },
+      {
+        "href": "/area/10",
+        "Name": "Area 9",
+        "Parent": {
+          "href": "/area/1"
+        },
+        "Category": {
+          "Type": "Hallway"
+        },
+        "AssociatedDevices": [
+          {
+            "href": "/device/12"
+          },
+          {
+            "href": "/device/19"
+          }
+        ],
+        "AssociatedOccupancyGroups": [
+          {
+            "href": "/occupancygroup/9"
+          }
+        ],
+        "LoadShedding": {
+          "href": "/area/10/loadshedding"
+        },
+        "OccupancySettings": {
+          "href": "/area/10/occupancysettings"
+        },
+        "OccupancySensorSettings": {
+          "href": "/area/10/occupancysensorsettings"
+        },
+        "DaylightingGainSettings": {
+          "href": "/area/10/daylightinggainsettings"
+        },
+        "IsLeaf": true
+      },
+      {
+        "href": "/area/11",
+        "Name": "Area 10",
+        "Parent": {
+          "href": "/area/1"
+        },
+        "Category": {
+          "Type": "Hallway"
+        },
+        "AssociatedDevices": [
+          {
+            "href": "/device/5"
+          },
+          {
+            "href": "/device/7"
+          }
+        ],
+        "AssociatedOccupancyGroups": [
+          {
+            "href": "/occupancygroup/10"
+          }
+        ],
+        "LoadShedding": {
+          "href": "/area/11/loadshedding"
+        },
+        "OccupancySettings": {
+          "href": "/area/11/occupancysettings"
+        },
+        "OccupancySensorSettings": {
+          "href": "/area/11/occupancysensorsettings"
+        },
+        "DaylightingGainSettings": {
+          "href": "/area/11/daylightinggainsettings"
+        },
+        "IsLeaf": true
+      },
+      {
+        "href": "/area/12",
+        "Name": "Area 11",
+        "Parent": {
+          "href": "/area/1"
+        },
+        "Category": {
+          "Type": "Hallway"
+        },
+        "AssociatedDevices": [
+          {
+            "href": "/device/2"
+          }
+        ],
+        "AssociatedOccupancyGroups": [
+          {
+            "href": "/occupancygroup/11"
+          }
+        ],
+        "LoadShedding": {
+          "href": "/area/12/loadshedding"
+        },
+        "OccupancySettings": {
+          "href": "/area/12/occupancysettings"
+        },
+        "OccupancySensorSettings": {
+          "href": "/area/12/occupancysensorsettings"
+        },
+        "DaylightingGainSettings": {
+          "href": "/area/12/daylightinggainsettings"
+        },
+        "IsLeaf": true
+      },
+      {
+        "href": "/area/13",
+        "Name": "Area 12",
+        "Parent": {
+          "href": "/area/1"
+        },
+        "Category": {
+          "Type": "Hallway"
+        },
+        "AssociatedDevices": [
+          {
+            "href": "/device/10"
+          },
+          {
+            "href": "/device/11"
+          }
+        ],
+        "AssociatedOccupancyGroups": [
+          {
+            "href": "/occupancygroup/12"
+          }
+        ],
+        "LoadShedding": {
+          "href": "/area/13/loadshedding"
+        },
+        "OccupancySettings": {
+          "href": "/area/13/occupancysettings"
+        },
+        "OccupancySensorSettings": {
+          "href": "/area/13/occupancysensorsettings"
+        },
+        "DaylightingGainSettings": {
+          "href": "/area/13/daylightinggainsettings"
+        },
+        "IsLeaf": true
+      },
+      {
+        "href": "/area/14",
+        "Name": "Area 13",
+        "Parent": {
+          "href": "/area/1"
+        },
+        "Category": {
+          "Type": "Hallway"
+        },
+        "AssociatedDevices": [
+          {
+            "href": "/device/9"
+          }
+        ],
+        "AssociatedOccupancyGroups": [
+          {
+            "href": "/occupancygroup/13"
+          }
+        ],
+        "LoadShedding": {
+          "href": "/area/14/loadshedding"
+        },
+        "OccupancySettings": {
+          "href": "/area/14/occupancysettings"
+        },
+        "OccupancySensorSettings": {
+          "href": "/area/14/occupancysensorsettings"
+        },
+        "DaylightingGainSettings": {
+          "href": "/area/14/daylightinggainsettings"
+        },
+        "IsLeaf": true
+      },
+      {
+        "href": "/area/15",
+        "Name": "Area 14",
+        "Parent": {
+          "href": "/area/1"
+        },
+        "Category": {
+          "Type": "Hallway"
+        },
+        "AssociatedDevices": [
+          {
+            "href": "/device/3"
+          },
+          {
+            "href": "/device/18"
+          }
+        ],
+        "AssociatedOccupancyGroups": [
+          {
+            "href": "/occupancygroup/14"
+          }
+        ],
+        "LoadShedding": {
+          "href": "/area/15/loadshedding"
+        },
+        "OccupancySettings": {
+          "href": "/area/15/occupancysettings"
+        },
+        "OccupancySensorSettings": {
+          "href": "/area/15/occupancysensorsettings"
+        },
+        "DaylightingGainSettings": {
+          "href": "/area/15/daylightinggainsettings"
+        },
+        "IsLeaf": true
+      },
+      {
+        "href": "/area/16",
+        "Name": "Area 15",
+        "Parent": {
+          "href": "/area/1"
+        },
+        "Category": {
+          "Type": "Hallway"
+        },
+        "AssociatedDevices": [
+          {
+            "href": "/device/13"
+          }
+        ],
+        "AssociatedOccupancyGroups": [
+          {
+            "href": "/occupancygroup/15"
+          }
+        ],
+        "LoadShedding": {
+          "href": "/area/16/loadshedding"
+        },
+        "OccupancySettings": {
+          "href": "/area/16/occupancysettings"
+        },
+        "OccupancySensorSettings": {
+          "href": "/area/16/occupancysensorsettings"
+        },
+        "DaylightingGainSettings": {
+          "href": "/area/16/daylightinggainsettings"
+        },
+        "IsLeaf": true
+      },
+      {
+        "href": "/area/17",
+        "Name": "Area 16",
+        "Parent": {
+          "href": "/area/1"
+        },
+        "Category": {
+          "Type": "Hallway"
+        },
+        "AssociatedOccupancyGroups": [
+          {
+            "href": "/occupancygroup/16"
+          }
+        ],
+        "LoadShedding": {
+          "href": "/area/17/loadshedding"
+        },
+        "OccupancySettings": {
+          "href": "/area/17/occupancysettings"
+        },
+        "OccupancySensorSettings": {
+          "href": "/area/17/occupancysensorsettings"
+        },
+        "DaylightingGainSettings": {
+          "href": "/area/17/daylightinggainsettings"
+        },
+        "IsLeaf": true
+      },
+      {
+        "href": "/area/18",
+        "Name": "Area 17",
+        "Parent": {
+          "href": "/area/1"
+        },
+        "Category": {
+          "Type": "Hallway"
+        },
+        "AssociatedDevices": [
+          {
+            "href": "/device/21"
+          },
+          {
+            "href": "/device/22"
+          }
+        ],
+        "AssociatedOccupancyGroups": [
+          {
+            "href": "/occupancygroup/17"
+          }
+        ],
+        "LoadShedding": {
+          "href": "/area/18/loadshedding"
+        },
+        "OccupancySettings": {
+          "href": "/area/18/occupancysettings"
+        },
+        "OccupancySensorSettings": {
+          "href": "/area/18/occupancysensorsettings"
+        },
+        "DaylightingGainSettings": {
+          "href": "/area/18/daylightinggainsettings"
+        },
+        "IsLeaf": true
+      }
+    ]
+  }
+}
