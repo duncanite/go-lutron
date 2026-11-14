@@ -6,7 +6,9 @@ remotes and scenes; what each zone is at; the commands they take; and the events
 bridge sends when a zone changes or a button is pressed.
 
 Lutron does not publish LEAP. What is here follows the open implementations that
-reverse-engineered it, and **has not been run against a bridge yet**.
+reverse-engineered it. It has been run against one Caséta Smart Bridge: pairing, the
+listing, zone levels, zone and Pico events, and setting a level worked; the rest has not
+been tried. [docs/protocol.md](docs/protocol.md#run-against-a-bridge) lists both.
 
 The command, run from the bridge's network:
 

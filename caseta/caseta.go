@@ -5,8 +5,9 @@
 // answer this way; a RadioRA 3 or HomeWorks processor arranges the same
 // things under areas and control stations and is not covered.
 //
-// The shapes are the open implementations' recorded answers. Nothing
-// here has been run against a bridge.
+// The shapes are the open implementations' recorded answers. Part of
+// this has been run against one Smart Bridge and part has not:
+// docs/protocol.md lists which.
 package caseta
 
 import (

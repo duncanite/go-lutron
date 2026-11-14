@@ -1,9 +1,11 @@
 # go-lutron: the design
 
 A Go module and one command, `lutron`, for a Lutron Caséta bridge over LEAP
-([protocol.md](protocol.md)). Run from the bridge's network. **Nothing here has been run
-against a bridge yet**: the protocol is the open implementations', and the tests run
-against a bridge of this module's own making that answers as their recorded answers read.
+([protocol.md](protocol.md)). Run from the bridge's network. The protocol is the open
+implementations', and the tests run against a bridge of this module's own making that
+answers as their recorded answers read. The command has been run against one Caséta
+Smart Bridge, and [protocol.md](protocol.md#run-against-a-bridge) lists what worked there
+and what was not tried.
 
 ## Shape
 
