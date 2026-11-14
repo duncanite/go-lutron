@@ -412,6 +412,45 @@ func TestPairBeforeTheButton(t *testing.T) {
 		}
 	}
 
+	// With no identity given, pair brings the Caseta app's: the test
+	// bridge's pairing port chains to another root, and is refused as
+	// not Lutron's.
+	var bare syncBuffer
+
+	status = cli.Run(t.Context(), []string{
+		"--host", bridge.PairingAddr(), "--credentials", filepath.Join(t.TempDir(), "c"), "pair", "--timeout", "5s",
+	}, &bare, &bare)
+	if status != cli.ExitError || !strings.Contains(bare.String(), "the bridge's certificate") {
+		t.Fatalf(
+			"pair under the Caseta app's identity, to a bridge that is not Lutron's: %d\n%s",
+			status,
+			bare.String(),
+		)
+	}
+
+	// Another identity is three files, all or none.
+	files := map[string]string{
+		"--app-certificate": filepath.Join(app, "certificate.pem"),
+		"--app-key":         filepath.Join(app, "key.pem"),
+		"--app-root":        filepath.Join(app, "root.pem"),
+	}
+
+	for left := range files {
+		for _, some := range [][]string{{left}, without(files, left)} {
+			args := []string{"--host", bridge.PairingAddr(), "--credentials", filepath.Join(t.TempDir(), "c"), "pair"}
+			for _, flag := range some {
+				args = append(args, flag, files[flag])
+			}
+
+			var partial syncBuffer
+
+			if status = cli.Run(t.Context(), args, &partial, &partial); status != cli.ExitError ||
+				!strings.Contains(partial.String(), "go together") {
+				t.Fatalf("pair with %v: %d\n%s", some, status, partial.String())
+			}
+		}
+	}
+
 	if paired := bridge.Paired(); len(paired) != 0 {
 		t.Fatalf("the bridge signed without its button: %v", paired)
 	}
@@ -501,4 +540,17 @@ func TestWatchCommand(t *testing.T) {
 	if status := <-done; status != cli.ExitOK {
 		t.Fatalf("watch: %d\n%s", status, out.String())
 	}
+}
+
+// without is the map's keys but one.
+func without(all map[string]string, left string) []string {
+	var rest []string
+
+	for key := range all {
+		if key != left {
+			rest = append(rest, key)
+		}
+	}
+
+	return rest
 }

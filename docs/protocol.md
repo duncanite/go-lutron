@@ -95,9 +95,9 @@ Lutron's root and not the app's authority, pylutron-caseta discards the root the
 processor answers with and keeps Lutron's root for port 8081. This module's `Pair` keeps
 what is answered, always, and has not been written for a processor.
 
-This module's `Pair` takes a connection already made to port 8083; it does not carry the
-app's identity itself. Whether this repository should is a decision not yet taken: it is
-a private key Lutron ships in its app, published in other projects' source.
+This module's `Pair` takes a connection already made to port 8083, and `CasetaApp` is
+the identity to make it with for a Caséta bridge: Lutron's, copied from pylutron-caseta,
+as [leap/identity](../leap/identity/README.md) says.
 
 ## What a Caséta bridge holds
 

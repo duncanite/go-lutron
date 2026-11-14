@@ -51,6 +51,7 @@ var (
 	errReplaced = errors.New("the file made for the key is no longer the one by its name; nothing was written to it")
 	errSeveral  = errors.New("several zones by that name; say the room too, or the zone's id")
 	errNotJSON  = errors.New("the body is not JSON")
+	errIdentity = errors.New("--app-certificate, --app-key and --app-root go together")
 )
 
 // exitStatus is how the parser's own exit, on --help, leaves Run: kong
@@ -87,11 +88,11 @@ type zoneTarget struct {
 
 type (
 	pairCommand struct {
-		AppCertificate string        `help:"The certificate the bridge's pairing port expects of a client, PEM." required:"true"                           type:"existingfile"`
-		AppKey         string        `help:"Its key, PEM."                                                       required:"true"                           type:"existingfile"`
-		AppRoot        string        `help:"The authority the pairing port's own certificate chains to, PEM."    required:"true"                           type:"existingfile"`
-		Name           string        `default:"go-lutron"                                                        help:"What the bridge calls this client."`
-		Timeout        time.Duration `default:"3m"                                                               help:"How long to wait for the button."`
+		AppCertificate string        `help:"Another certificate for the pairing port, PEM, in place of the Caséta app's; with --app-key and --app-root."  type:"existingfile"`
+		AppKey         string        `help:"Its key, PEM."                                                                                                type:"existingfile"`
+		AppRoot        string        `help:"The authority the pairing port's own certificate chains to, PEM."                                             type:"existingfile"`
+		Name           string        `default:"go-lutron"                                                                                                 help:"What the bridge calls this client."`
+		Timeout        time.Duration `default:"3m"                                                                                                        help:"How long to wait for the button."`
 		Force          bool          `help:"Replace credentials already in the directory."`
 	}
 	pingCommand    struct{}
@@ -397,10 +398,24 @@ func store(dir string, reserved *os.File, credentials *leap.Credentials) error {
 	return nil
 }
 
-// identity is the TLS configuration the pairing port takes, from the
-// three files. The port's certificate names no host, so its chain to the
-// root is what is verified.
+// identity is the TLS configuration the pairing port takes: the Caséta
+// app's, or another from the three files, all of them or none. The
+// port's certificate names no host, so its chain to the root is what is
+// verified.
 func (cmd *pairCommand) identity() (*tls.Config, error) {
+	if cmd.AppCertificate == "" && cmd.AppKey == "" && cmd.AppRoot == "" {
+		config, err := leap.TLSConfig(leap.CasetaApp())
+		if err != nil {
+			return nil, fmt.Errorf("the Caséta app's identity: %w", err)
+		}
+
+		return config, nil
+	}
+
+	if cmd.AppCertificate == "" || cmd.AppKey == "" || cmd.AppRoot == "" {
+		return nil, errIdentity
+	}
+
 	certificate, err := xos.ReadFile(cmd.AppCertificate)
 	if err != nil {
 		return nil, fmt.Errorf("reading the app's certificate: %w", err)

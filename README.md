@@ -12,7 +12,7 @@ The command, run from the bridge's network:
 
 ```bash
 export LUTRON_HOST=192.0.2.20 LUTRON_CREDENTIALS=~/.config/lutron
-just lutron pair --app-certificate app.pem --app-key app-key.pem --app-root app-root.pem
+just lutron pair                          # press the button on the bridge when asked
 just lutron devices                       # every device, with its zone or its buttons
 just lutron level "Hallway Lights"        # by name, or by zone id
 just lutron set "Hallway Lights" 40 --fade 2s
@@ -23,9 +23,10 @@ just lutron call ReadRequest /device      # anything else, as the bridge answers
 ```
 
 `LUTRON_CREDENTIALS` has no default: it holds a private key, so where it lives is said.
-`pair` needs the identity the bridge's pairing port expects, that of Lutron's app, as
-three PEM files; this repository does not carry it. It asks for the button on the bridge
-to be pressed, and writes the credentials every other command uses.
+`pair` asks for the button on the bridge to be pressed, and writes the credentials every
+other command uses. A bridge's pairing port takes only a client presenting the identity of
+Lutron's own app, which is the same for every Caséta bridge; it is carried here, in
+[leap/identity](leap/identity/README.md), which says whose it is and where it is from.
 
 [docs/protocol.md](docs/protocol.md) is the protocol and where each part of it comes
 from; [docs/design.md](docs/design.md) is the shape of the module and its decisions.

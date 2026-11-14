@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	_ "embed" // the Caséta app's identity
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -27,6 +28,34 @@ var (
 	// to the root.
 	ErrCredentials = errors.New("the credentials are not usable")
 )
+
+// The identity the open implementations present to a Caséta bridge's
+// pairing port: Lutron's, and published. identity/README.md says whose
+// it is, where it was copied from, and what its holder can do.
+var (
+	//go:embed identity/caseta-app.pem
+	casetaApp []byte
+	//go:embed identity/caseta-app-key.pem
+	casetaAppKey []byte
+	//go:embed identity/caseta-pairing-root.pem
+	casetaPairingRoot []byte
+)
+
+// CasetaApp is the identity to dial a Caséta bridge's pairing port with:
+// a certificate and key issued to "Caseta Application" by Lutron, and
+// the root that port's certificate chains to. Each call returns its own
+// copy. The key is published, and its certificate names a server's use
+// too: under TLSConfig of it, whoever holds the key passes for a pairing
+// port. The button on the bridge and the network guard a pairing, not
+// this check. A RadioRA 3 or HomeWorks processor's pairing port chains
+// to another root, which is not here.
+func CasetaApp() *Credentials {
+	return &Credentials{
+		Key:         append([]byte(nil), casetaAppKey...),
+		Certificate: append([]byte(nil), casetaApp...),
+		Root:        append([]byte(nil), casetaPairingRoot...),
+	}
+}
 
 // Credentials is what pairing gives and every connection after it needs:
 // this client's private key, the certificate the bridge signed for it,
@@ -101,8 +130,8 @@ type (
 // for that. name is how the client is called on the bridge.
 //
 // The pairing port does not take any client: it wants the certificate
-// Lutron's own app carries. That identity is not in this package; the
-// caller makes conn with it.
+// Lutron's own app carries. CasetaApp is that identity for a Caséta
+// bridge; the caller makes conn with it.
 func Pair(ctx context.Context, conn net.Conn, name string, ready func()) (*Credentials, error) {
 	defer func() { _ = conn.Close() }()
 
