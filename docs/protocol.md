@@ -111,7 +111,7 @@ theirs.
 | --- | --- | --- |
 | `/server/1/status/ping` | `PingResponse.LEAPVersion` | the bridge is there, and its protocol version |
 | `/project` | `Project` | the project's name and product type |
-| `/device` | `Devices[]` | every device: `Name`, `FullyQualifiedName[]` (area, then name), `SerialNumber`, `ModelNumber`, `DeviceType`, `LocalZones[]`, `AssociatedArea`, `ButtonGroups[]` |
+| `/device` | `Devices[]` | every device: `Name`, `FullyQualifiedName[]` (area, then name), `SerialNumber`, `ModelNumber`, `DeviceType`, `LocalZones[]`, `AssociatedArea`, `ButtonGroups[]`, `FirmwareImage` (the bridge's own version under `Firmware.DisplayName`, another device's under `Contents[].OS.Firmware.DisplayName`; seen on a bridge, absent from pylutron-caseta's fixtures) |
 | `/area` | `Areas[]` | rooms: `Name` |
 | `/button` | `Buttons[]` | every button of every keypad and Pico: `ButtonNumber`, `Name`, `Parent` its button group |
 | `/virtualbutton` | `VirtualButtons[]` | scenes: `Name`, `IsProgrammed` |

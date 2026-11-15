@@ -12,6 +12,7 @@ package caseta
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -86,7 +87,62 @@ type Device struct {
 	// group as its Parent.
 	ButtonGroups   []Ref `json:"ButtonGroups"`   //nolint:tagliatelle // the bridge's keys are PascalCase
 	AssociatedArea *Ref  `json:"AssociatedArea"` //nolint:tagliatelle // the bridge's keys are PascalCase
+	// Firmware is the version of the firmware the device runs, as the
+	// bridge words it; empty when the bridge's answer does not say. It is
+	// read out of the answer's FirmwareImage, which holds the bridge's own
+	// version in one place and every other device's in another, a list of
+	// its parts: the bridge's own wins when both are there, and of
+	// several parts the first is taken. No device seen has either.
+	Firmware string `json:"-"`
 }
+
+// UnmarshalJSON reads a device and, out of its FirmwareImage, the version
+// it runs.
+func (d *Device) UnmarshalJSON(data []byte) error {
+	// plain has Device's fields and none of its methods, this one first.
+	type plain Device
+
+	var raw struct {
+		*plain
+
+		FirmwareImage *firmwareImage `json:"FirmwareImage"` //nolint:tagliatelle // the bridge's keys are PascalCase
+	}
+
+	raw.plain = (*plain)(d)
+
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return fmt.Errorf("%w: a device: %w", ErrAnswer, err)
+	}
+
+	switch image := raw.FirmwareImage; {
+	case image == nil:
+	case image.Firmware != nil:
+		d.Firmware = image.Firmware.DisplayName
+	case len(image.Contents) > 0:
+		d.Firmware = image.Contents[0].OS.Firmware.DisplayName
+	}
+
+	return nil
+}
+
+// A device's firmware as the bridge reports it: the bridge's own under
+// Firmware, every other device's as a list of contents, one per part of
+// the device that runs firmware ("CCA" on every device seen).
+type (
+	firmwareImage struct {
+		Firmware *named            `json:"Firmware"` //nolint:tagliatelle // the bridge's keys are PascalCase
+		Contents []firmwareContent `json:"Contents"` //nolint:tagliatelle // the bridge's keys are PascalCase
+	}
+	firmwareContent struct {
+		OS firmwareOS `json:"OS"` //nolint:tagliatelle // the bridge's keys are PascalCase
+	}
+	firmwareOS struct {
+		Firmware named `json:"Firmware"` //nolint:tagliatelle // the bridge's keys are PascalCase
+	}
+	named struct {
+		DisplayName string `json:"DisplayName"` //nolint:tagliatelle // the bridge's keys are PascalCase
+	}
+)
 
 // Area is a room.
 type Area struct {

@@ -16,7 +16,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/alecthomas/kong"
@@ -464,40 +463,8 @@ func (*devicesCommand) Run(ctx context.Context, root *rootCommand) error {
 			return err
 		}
 
-		table := tabwriter.NewWriter(root.out, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(table, "DEVICE\tNAME\tTYPE\tMODEL\tSERIAL\tZONE\tBUTTONS")
-
-		for _, device := range devices {
-			var zones []string
-
-			for _, driven := range device.LocalZones {
-				zones = append(zones, driven.ID())
-			}
-
-			fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%d\t%s\t%s\n",
-				device.ID(), strings.Join(device.FullyQualifiedName, " "), device.DeviceType,
-				device.ModelNumber, device.SerialNumber, strings.Join(zones, ","),
-				strings.Join(buttonsOf(&device, buttons), " "))
-		}
-
-		return table.Flush()
+		return caseta.WriteDevices(root.out, devices, buttons)
 	})
-}
-
-// buttonsOf is the device's buttons, each as its id and its number on
-// the device.
-func buttonsOf(device *caseta.Device, buttons []caseta.Button) []string {
-	var found []string
-
-	for _, button := range buttons {
-		for _, group := range device.ButtonGroups {
-			if button.Parent.Href == group.Href {
-				found = append(found, fmt.Sprintf("%s=%d", button.ID(), button.ButtonNumber))
-			}
-		}
-	}
-
-	return found
 }
 
 func (*scenesCommand) Run(ctx context.Context, root *rootCommand) error {

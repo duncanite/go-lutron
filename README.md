@@ -15,7 +15,7 @@ The command, run from the bridge's network:
 ```bash
 export LUTRON_HOST=192.0.2.20 LUTRON_CREDENTIALS=~/.config/lutron
 just lutron pair                          # press the button on the bridge when asked
-just lutron devices                       # every device, with its zone or its buttons
+just lutron devices                       # every device: model, serial, firmware, zone or buttons
 just lutron level "Hallway Lights"        # by name, or by zone id
 just lutron set "Hallway Lights" 40 --fade 2s
 just lutron off 1
