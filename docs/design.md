@@ -21,6 +21,9 @@ and what was not tried.
   runs, areas, buttons, scenes; `WriteDevices`, the listing a command prints; a
   zone's level; the commands a zone, a button and a scene take; a button's events by
   subscription, and the zones' changes, which a Caséta bridge sends unasked.
+- `credentials`: what pairing gave, as three files in a directory, the key private:
+  `Reserve` before the bridge's button, `Save` after, `Load` for every later run. A
+  command over the library keeps credentials the same way and in the same files.
 - `cmd/lutron` and `internal/cli`: the command, kong under primordium's process setup.
 
 ## Decisions
