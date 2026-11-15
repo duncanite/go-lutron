@@ -179,12 +179,18 @@ What worked, each as this document describes it:
   press arrives as `Press`, then `Release`. On the Pico tried, button number 0 turned
   its light on and number 2 turned it off.
 - `GoToLevel` to a dimmer's zone, to 30 and to 0: the light followed.
+- `GoToDimmedLevel` to a dimmer's zone, with a `FadeTime` of two seconds and of ten, up and
+  down: the light took that long to arrive, by eye, in both directions. A short fade
+  upwards looks quicker than the same one downwards; over ten seconds both are plainly
+  ten.
+- `/device` carried each device's `FirmwareImage`, the bridge's own version and every
+  other device's, the Picos' as `000.000.000r000`.
 
-What was not tried: `GoToDimmedLevel` and a fade, `Raise`, `Lower` and `Stop`, pressing a
-button or running a scene by command, Smart Away, occupancy groups, a request for a URL
-the bridge lacks, pairing without the identity, and a signing request sent before the
-button. That bridge has no programmed scene: `/virtualbutton` answers a hundred slots
-under Lutron's default names, each with `IsProgrammed` false.
+What was not tried: `Raise`, `Lower` and `Stop`, pressing a button or running a scene by
+command, Smart Away, occupancy groups, a request for a URL the bridge lacks, pairing
+without the identity, and a signing request sent before the button. That bridge has no
+programmed scene: `/virtualbutton` answers a hundred slots under Lutron's default names,
+each with `IsProgrammed` false.
 
 Its answers for `/device`, `/area`, `/button`, `/virtualbutton` and one zone's status are
 kept as fixtures, names and serials replaced, under
