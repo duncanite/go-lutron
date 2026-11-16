@@ -249,9 +249,9 @@ func (cmd *pairCommand) Run(ctx context.Context, root *rootCommand) error {
 		host = net.JoinHostPort(strings.Trim(host, "[]"), leap.PairingPort)
 	}
 
-	conn, err := (&tls.Dialer{Config: config}).DialContext(ctx, "tcp", host)
+	conn, err := leap.DialTLS(ctx, host, config)
 	if err != nil {
-		return fmt.Errorf("connecting to the bridge's pairing port at %s: %w", host, err)
+		return fmt.Errorf("the pairing port: %w", err)
 	}
 
 	paired, err := leap.Pair(ctx, conn, cmd.Name, func() {

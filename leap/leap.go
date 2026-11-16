@@ -146,14 +146,48 @@ type Conn struct {
 // returns the connection. TLSConfig makes the config from what pairing
 // gave.
 func Dial(ctx context.Context, addr string, config *tls.Config) (*Conn, error) {
-	dialer := &tls.Dialer{Config: config}
+	conn, err := DialTLS(ctx, addr, config)
+	if err != nil {
+		return nil, err
+	}
 
-	conn, err := dialer.DialContext(ctx, "tcp", addr)
+	return New(conn), nil
+}
+
+// DialTLS makes a TLS connection to one of a bridge's ports, LEAP's or
+// the pairing port, under config, and returns it once the handshake is
+// done.
+//
+// No server name is sent, whatever the host in addr and whatever config
+// names: a bridge's certificate names no host, and a bridge asked for one
+// by name answers with another certificate, which its root does not sign.
+// So config has to verify the bridge by itself, as TLSConfig's does: one
+// that leaves the check of a name to crypto/tls is refused by it.
+func DialTLS(ctx context.Context, addr string, config *tls.Config) (net.Conn, error) {
+	if config == nil {
+		return nil, fmt.Errorf("%w: no TLS configuration for %s", ErrCredentials, addr)
+	}
+
+	var dialer net.Dialer
+
+	raw, err := dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("connecting to the bridge at %s: %w", addr, err)
 	}
 
-	return New(conn), nil
+	// tls.Dialer would fill the name in from addr: the handshake is done
+	// here, over a connection made without it.
+	unnamed := config.Clone()
+	unnamed.ServerName = ""
+
+	secured := tls.Client(raw, unnamed)
+	if err = secured.HandshakeContext(ctx); err != nil {
+		_ = raw.Close()
+
+		return nil, fmt.Errorf("connecting to the bridge at %s: %w", addr, err)
+	}
+
+	return secured, nil
 }
 
 // New speaks LEAP over a connection already made, and owns it from here:

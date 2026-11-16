@@ -415,7 +415,7 @@ func TestPairBeforeTheButton(t *testing.T) {
 	} {
 		out, status = pair(host, filepath.Join(t.TempDir(), "c"), "--timeout", "2s")
 		if status != cli.ExitError ||
-			!strings.Contains(out, "pairing port at "+dialled+":") {
+			!strings.Contains(out, "the pairing port: connecting to the bridge at "+dialled+":") {
 			t.Fatalf("%s: %d\n%s\nwant a dial of %s", host, status, out, dialled)
 		}
 	}

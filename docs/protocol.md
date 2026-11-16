@@ -194,6 +194,22 @@ certificate with an alert or by hanging up, is not recorded. That bridge has no
 programmed scene: `/virtualbutton` answers a hundred slots under Lutron's default names,
 each with `IsProgrammed` false.
 
+On 2026-11-15, the same bridge, reached by its mDNS name in place of its address:
+
+- Port 8081 presented a self-signed certificate, subject and issuer
+  `CN=lutron-4294967295`, which the root pairing gave does not sign: this module refused
+  it, and so did OpenSSL under the same root.
+- Reached by its address, so that no server name was sent, it presented its own
+  certificate and the command listed its devices.
+
+- Reached by that same mDNS name by this module once it sent no server name, with the
+  same credentials, it presented its own certificate again and the command listed its
+  devices.
+
+So a bridge chooses its certificate by the server name it is asked for, and a client
+sends none: `leap.DialTLS` makes the connection that way whatever the host is written as.
+Whether the pairing port does the same was not tried; it is dialled the same way.
+
 Its answers for `/device`, `/area`, `/button`, `/virtualbutton` and one zone's status are
 kept as fixtures, names and serials replaced, under
 [caseta/testdata/smartbridge](../caseta/testdata/smartbridge/README.md). A real answer

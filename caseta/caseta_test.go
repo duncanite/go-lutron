@@ -658,6 +658,60 @@ func TestABridgeThatRefuses(t *testing.T) {
 	_ = anew.Close()
 }
 
+// TestNoServerName: a bridge reached by a name is sent no server name: one
+// that is answers with a certificate its root does not sign, which the
+// credentials refuse.
+func TestNoServerName(t *testing.T) {
+	t.Parallel()
+
+	fake, _ := bridge(t)
+	credentials := fake.Credentials()
+
+	_, port, err := net.SplitHostPort(fake.Addr())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	named, err := caseta.Open(t.Context(), net.JoinHostPort("localhost", port), credentials)
+	if err != nil || len(fake.Named()) != 0 {
+		t.Fatalf("Open by a name = %v; the bridge was asked for %v", err, fake.Named())
+	}
+
+	_ = named.Close()
+
+	// Whatever the configuration names, too.
+	naming, err := leap.TLSConfig(credentials)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	naming.ServerName = "a-name.test"
+
+	conn, err := leap.Dial(t.Context(), fake.Addr(), naming)
+	if err != nil || len(fake.Named()) != 0 {
+		t.Fatalf("Dial under a configuration that names a server = %v; the bridge was asked for %v", err, fake.Named())
+	}
+
+	_ = conn.Close()
+
+	if _, err = leap.Dial(t.Context(), fake.Addr(), nil); !errors.Is(err, leap.ErrCredentials) {
+		t.Fatalf("Dial under no configuration = %v, want ErrCredentials", err)
+	}
+
+	// What a client that sends the name meets.
+	config, err := leap.TLSConfig(credentials)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config.ServerName = "localhost"
+
+	_, err = (&tls.Dialer{Config: config}).DialContext(t.Context(), "tcp", fake.Addr())
+	if !errors.Is(err, caseta.ErrCredentials) || len(fake.Named()) != 1 {
+		t.Fatalf("a dial that names the bridge = %v; the bridge was asked for %v", err, fake.Named())
+	}
+}
+
 // TestNotEveryAlert: a peer that fails the handshake for a reason of its
 // own, and not for the certificate it was shown, is no refusal of the
 // credentials: trying again may end otherwise.

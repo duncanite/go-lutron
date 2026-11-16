@@ -131,6 +131,8 @@ type Bridge struct {
 	mu sync.Mutex
 	// leap is the LEAP port's listener; nil while the bridge is away.
 	leap net.Listener
+	// named is the server names clients asked the LEAP port for.
+	named []string
 	// signer signs the clients' certificates, and is whom the LEAP port
 	// takes them from: Revoke replaces it.
 	signer        *authority
@@ -156,18 +158,30 @@ func New() *Bridge {
 	bridge.app, bridge.appPEM = bridge.bootstrap.issuePEM("the app", x509.ExtKeyUsageClientAuth)
 
 	served := bridge.authority.issue("bridge", x509.ExtKeyUsageServerAuth)
+	placeholder := newAuthority("a bridge asked for by name").issue("placeholder", x509.ExtKeyUsageServerAuth)
 
 	// Read at each handshake: whom the port takes a client from changes
 	// when the clients are revoked.
 	bridge.secured = &tls.Config{
 		MinVersion: tls.VersionTLS12,
-		GetConfigForClient: func(*tls.ClientHelloInfo) (*tls.Config, error) {
+		GetConfigForClient: func(hello *tls.ClientHelloInfo) (*tls.Config, error) {
 			bridge.mu.Lock()
 			defer bridge.mu.Unlock()
 
+			certificate := served
+
+			// A bridge asked for by a name answers with a certificate of
+			// its own signing, which its root does not sign: seen on a
+			// Smart Bridge reached by its mDNS name, and not by its
+			// address.
+			if hello.ServerName != "" {
+				bridge.named = append(bridge.named, hello.ServerName)
+				certificate = placeholder
+			}
+
 			return &tls.Config{
 				MinVersion:   tls.VersionTLS12,
-				Certificates: []tls.Certificate{served},
+				Certificates: []tls.Certificate{certificate},
 				ClientAuth:   tls.RequireAndVerifyClientCert,
 				ClientCAs:    bridge.signer.pool(),
 			}, nil
@@ -385,6 +399,15 @@ func (b *Bridge) Unsolicited(url, bodyType string, body any) {
 			Body:           raw,
 		})
 	}
+}
+
+// Named is the server names clients asked the LEAP port for, in order: a
+// client of a bridge sends none.
+func (b *Bridge) Named() []string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	return append([]string(nil), b.named...)
 }
 
 // Connected is how many LEAP connections the bridge holds now.
