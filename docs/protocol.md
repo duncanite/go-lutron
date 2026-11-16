@@ -201,6 +201,10 @@ On 2026-11-15, the same bridge, reached by its mDNS name in place of its address
   it, and so did OpenSSL under the same root.
 - Reached by its address, so that no server name was sent, it presented its own
   certificate and the command listed its devices.
+- The root pairing gave for that bridge is self-signed, and its subject is `SmartBridge`
+  followed by twelve hexadecimal digits, which are the Ethernet address the bridge
+  announces as `MACADDR`: a root of that bridge's own. Whether every Caséta bridge has
+  one of its own was not seen, and a RadioRA 3 processor's is Lutron's, shared.
 
 - Reached by that same mDNS name by this module once it sent no server name, with the
   same credentials, it presented its own certificate again and the command listed its
@@ -209,6 +213,30 @@ On 2026-11-15, the same bridge, reached by its mDNS name in place of its address
 So a bridge chooses its certificate by the server name it is asked for, and a client
 sends none: `leap.DialTLS` makes the connection that way whatever the host is written as.
 Whether the pairing port does the same was not tried; it is dialled the same way.
+
+## On the network
+
+A bridge announces itself over Multicast DNS. On 2026-11-15 the same bridge announced:
+
+- one instance, `Lutron Status`, of the service `_lutron._tcp`;
+- on a host named `Lutron-`, then eight hexadecimal digits, `.local`;
+- at port 22, which is not LEAP's: LEAP is on 8081 whatever is announced;
+- with a TXT record of seven entries: `MACADDR`, its Ethernet address; `CODEVER`, the
+  firmware version `/device` gives for the bridge; `DEVCLASS`; `FW_STATUS`, `NW_STATUS`
+  and `ST_STATUS`, its own view of its updates, its network and itself; and `SYSTYPE`,
+  `SmartBridge`.
+
+The eight digits are the bridge's serial number: read as hexadecimal they are the number
+`/device` gives in the bridge's own entry, checked on that bridge. So a bridge says who it
+is before any connection, and `caseta.Recognize` reads it there. It is the host's word,
+which any host can give: [design.md](design.md#decisions) says what proves it.
+
+Home Assistant's integration reads the same two things
+([its manifest and its configuration flow](https://github.com/home-assistant/core/tree/dbd98fabb3b9699714e4bdd5431d1316696f22e6/homeassistant/components/lutron_caseta)):
+it takes a host named `lutron-` and keeps what follows as the bridge's identity, and it
+tells Lutron's systems apart by `SYSTYPE`, a Caséta bridge's beginning with
+`smartbridge` and the others' with `hwqs`, `radiora3`, `ra2select` and `athena`. Only the
+first was seen here.
 
 Its answers for `/device`, `/area`, `/button`, `/virtualbutton` and one zone's status are
 kept as fixtures, names and serials replaced, under

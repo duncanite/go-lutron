@@ -21,7 +21,8 @@ and what was not tried.
   credentials and gives a `Bridge`, which has the bridge's `ID`; devices, with the
   firmware each runs, areas, buttons, scenes; `WriteDevices`, the listing a command
   prints; a zone's level; the commands a zone, a button and a scene take; `Watch`, how
-  things stand and then what happens; `Close`, `Done` and `Err`.
+  things stand and then what happens; `Close`, `Done` and `Err`. `Recognize` and `Find`
+  tell a bridge on the network, through a `Browser` the caller lends.
 - `cmd/lutron` and `internal/cli`: the command, kong under primordium's process setup.
 - `internal/credentials`: what pairing gave, as three files in a directory, the key
   private: `Reserve` before the bridge's button, `Save` after, `Load` for every later
@@ -59,8 +60,35 @@ and what was not tried.
   lost: nothing sets it apart from a connection that failed.
 - **A bridge is its serial.** `Bridge.ID` is the serial number the bridge gives in its
   own entry, the first of its devices, read when the bridge is opened: the same
-  whatever its address. What a bridge says of itself before a connection, on the
-  network, is not read yet.
+  whatever its address. A bridge says it on the network too, in its host's name, and
+  `Recognize` reads it there: the same value before a connection and after, so a bridge
+  is adopted by who it is and found wherever it is.
+- **An announcement is a claim, and the connection is the proof.** Anyone on the network
+  can announce a host named for a bridge's serial, at an address of their choosing.
+  `Found` is what a host says of itself. `Open` under the credentials pairing gave
+  takes only what serves a certificate for a server's use that the pairing's root
+  signs; on the one bridge seen that root is the bridge's own, and where a root is
+  shared by a maker's bridges another bridge passes that check, so it is `Bridge.ID`,
+  read once opened, that settles which bridge answered. So an `ErrCredentials` at an
+  address that was found says that what answers there is not the paired bridge, or that
+  the bridge takes the pairing no more: a consumer does not conclude from it alone that
+  its pairing is void.
+- **Finding a bridge needs a means this module does not have, and does not take.** A
+  host has one Multicast DNS responder, and it belongs to the program, not to a
+  library: a second one beside it is what must not happen. `Recognize` is the knowledge,
+  with no socket: an announcement in, a bridge's identity and addresses out. `Find` is
+  the search, through a `Browser` the caller lends, and keeps nothing between two of the
+  browser's calls: a bridge is told again whenever the browser tells of it again, and
+  one gone is told when it comes as it last stood. `Browser` and `Instance` are
+  declared here, in this module's own terms, and name no Multicast DNS library: whoever
+  has one satisfies them with a few lines. The same declarations are written again in
+  each library of the family that is found this way; that duplication is the price of
+  none of them depending on another.
+- **The addresses found are LEAP's, not the announced one, and all of them.** A bridge
+  announces port 22. `Found.Addresses` is every address the bridge's host has that can
+  be dialled, in the order they came, or its host's name when there is none, each with
+  LEAP's port. A host has several, and which one reaches the bridge depends on where
+  the caller stands, which this module does not know: it does not pick.
 - **A Caséta bridge is not known to say that its devices changed.** `Watch` tells the
   devices and the buttons as they were when it started; a device added, removed or
   renamed is seen by watching again.
