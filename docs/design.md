@@ -17,14 +17,16 @@ and what was not tried.
 - `leap/leaptest`: a bridge for tests. Both TLS ports under authorities made for the
   test, the pairing behind a button, LEAP over a table of resources, with commands
   recorded and events emitted on demand.
-- `caseta`: a Caséta bridge's objects over that wire: devices, with the firmware each
-  runs, areas, buttons, scenes; `WriteDevices`, the listing a command prints; a
-  zone's level; the commands a zone, a button and a scene take; a button's events by
-  subscription, and the zones' changes, which a Caséta bridge sends unasked.
-- `credentials`: what pairing gave, as three files in a directory, the key private:
-  `Reserve` before the bridge's button, `Save` after, `Load` for every later run. A
-  command over the library keeps credentials the same way and in the same files.
+- `caseta`: a Caséta bridge's objects over that wire. `Open` takes an address and the
+  credentials and gives a `Bridge`, which has the bridge's `ID`; devices, with the
+  firmware each runs, areas, buttons, scenes; `WriteDevices`, the listing a command
+  prints; a zone's level; the commands a zone, a button and a scene take; `Watch`, how
+  things stand and then what happens; `Close`, `Done` and `Err`.
 - `cmd/lutron` and `internal/cli`: the command, kong under primordium's process setup.
+- `internal/credentials`: what pairing gave, as three files in a directory, the key
+  private: `Reserve` before the bridge's button, `Save` after, `Load` for every later
+  run. It is the command's: the library reads and writes no file, and takes and gives
+  credentials as bytes.
 
 ## Decisions
 
@@ -32,10 +34,36 @@ and what was not tried.
   is lives in `caseta`. A RadioRA 3 or HomeWorks processor speaks the same wire with
   another arrangement of objects, and would be a package beside `caseta`, not a change to
   `leap`.
-- **Handlers run on the reading goroutine.** An event is handed to its handler where it
-  was read, in order, with no queue between: a queue has to be bounded, and a bound has
-  to drop or block. The price is a rule: a handler returns promptly and makes no request
-  of its own.
+- **The wire's handlers run on the reading goroutine.** In `leap`, an event is handed to
+  its handler where it was read, in order, with no queue between: a queue has to be
+  bounded, and a bound has to drop or block. The price is a rule: a handler returns
+  promptly and makes no request of its own.
+- **`caseta` pays that price once, for its callers.** `Watch` tells its handler on the
+  goroutine that called it, where the handler may take its time and ask things of the
+  bridge. Between the two is a queue that is bounded by what it holds: one status a
+  zone, the last, since a level applied twice does no harm; and every button's press,
+  up to a thousand, past which the watch ends with an error and the bridge still
+  stands.
+- **A zone's status takes its place by when the bridge sent it.** `Watch` reads each
+  zone while the bridge may be sending that zone's changes; the answer comes back to
+  the reader and the changes to their handler, on two goroutines, and which reaches the
+  queue first says nothing. Every message carries its place among those the connection
+  read (`leap.Message.Received`), and of two statuses of a zone the later one stays.
+- **Lost is not closed, and neither is refused.** A connection its owner closed is
+  `ErrClosed`; one that ended by itself is `ErrLost` with its cause; credentials the
+  bridge does not take, or that do not take the bridge, are `ErrCredentials`, which
+  trying again does not cure. Nothing dials again by itself. A bridge's refusal is
+  known by the TLS alert that says it, which under TLS 1.3 comes after the client's
+  handshake, at its first read; a bridge that hung up with no alert, or one whose alert
+  a reset of the connection overtook, which Windows then discards unread, reads as
+  lost: nothing sets it apart from a connection that failed.
+- **A bridge is its serial.** `Bridge.ID` is the serial number the bridge gives in its
+  own entry, the first of its devices, read when the bridge is opened: the same
+  whatever its address. What a bridge says of itself before a connection, on the
+  network, is not read yet.
+- **A Caséta bridge is not known to say that its devices changed.** `Watch` tells the
+  devices and the buttons as they were when it started; a device added, removed or
+  renamed is seen by watching again.
 - **A subscription is registered before its request leaves,** so no event can arrive
   ahead of its handler, and a refused one is forgotten on the reading goroutine, so a
   message right behind the refusal finds none. The open implementations register after
@@ -73,7 +101,7 @@ and what was not tried.
   and refuses to overwrite a pairing unless told to. The directory has no default, so a
   private key never lands in whatever directory the command was run from, and `pair`
   makes it before asking for the button: a pairing granted and not written is lost.
-- **watch reads each zone first.** The open implementations read every zone's status
+- **Watching reads each zone first.** The open implementations read every zone's status
   once before relying on the bridge to send its changes, and whether a bridge sends
-  them to a connection that never asked is not known. `watch` does the same, and prints
-  where each zone stands.
+  them to a connection that never asked is not known. `Watch` does the same, and the
+  command's `watch` prints where each zone stands.

@@ -424,9 +424,9 @@ func (cmd *runCommand) Run(ctx context.Context, root *rootCommand) error {
 	})
 }
 
-// Run takes the zones' changes, subscribes to every button, and prints until the
-// context ends or the bridge hangs up. The events are printed from the
-// connection's reading goroutine, one line each.
+// Run prints what each zone is at, then every zone's change and every
+// button's press and release, one line each, until the context ends or
+// the bridge hangs up.
 func (*watchCommand) Run(ctx context.Context, root *rootCommand) error {
 	creds, err := root.credentials()
 	if err != nil {
@@ -440,63 +440,22 @@ func (*watchCommand) Run(ctx context.Context, root *rootCommand) error {
 
 	defer func() { _ = bridge.Close() }()
 
-	buttons, err := bridge.Buttons(ctx)
-	if err != nil {
-		return err
-	}
-
-	printZone := func(status caseta.ZoneStatus) {
-		if status.Level != nil {
-			fmt.Fprintf(root.out, "zone %s is at %d\n", status.Zone.ID(), *status.Level)
-		}
-	}
-
-	bridge.WatchZones(printZone)
-
-	if err = readZones(ctx, bridge, printZone); err != nil {
-		return err
-	}
-
-	for _, button := range buttons {
-		err = bridge.WatchButton(ctx, button.ID(), func(event caseta.ButtonEvent) {
-			fmt.Fprintf(root.out, "button %s %s\n", event.Button.ID(), strings.ToLower(event.Type))
-		})
-		if err != nil {
-			return err
-		}
-	}
-
-	fmt.Fprintf(root.out, "watching the zones and %d buttons\n", len(buttons))
-
-	select {
-	case <-ctx.Done():
-		return nil
-	case <-bridge.Conn().Done():
-		return bridge.Conn().Err()
-	}
-}
-
-// readZones reads each zone once and hands its status on, as the open
-// implementations do before they rely on the bridge sending changes; it
-// also says where each stands.
-func readZones(ctx context.Context, bridge *caseta.Bridge, each func(caseta.ZoneStatus)) error {
-	devices, err := bridge.Devices(ctx)
-	if err != nil {
-		return err
-	}
-
-	for _, device := range devices {
-		for _, driven := range device.LocalZones {
-			status, err := bridge.Zone(ctx, driven.ID())
-			if err != nil {
-				return err
+	err = bridge.Watch(ctx, func(event caseta.Event) {
+		switch told := event.(type) {
+		case caseta.ZoneStatus:
+			if told.Level != nil {
+				fmt.Fprintf(root.out, "zone %s is at %d\n", told.Zone.ID(), *told.Level)
 			}
-
-			each(*status)
+		case caseta.ButtonEvent:
+			fmt.Fprintf(root.out, "button %s %s\n", told.Button.ID(), strings.ToLower(told.Type))
 		}
+	})
+
+	if ctx.Err() != nil {
+		return nil
 	}
 
-	return nil
+	return err
 }
 
 func (cmd *callCommand) Run(ctx context.Context, root *rootCommand) error {

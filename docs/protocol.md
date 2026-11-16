@@ -188,7 +188,9 @@ What worked, each as this document describes it:
 
 What was not tried: `Raise`, `Lower` and `Stop`, pressing a button or running a scene by
 command, Smart Away, occupancy groups, a request for a URL the bridge lacks, pairing
-without the identity, and a signing request sent before the button. That bridge has no
+without the identity, a signing request sent before the button, and credentials the
+bridge no longer takes: which TLS version it speaks, and whether it refuses a client's
+certificate with an alert or by hanging up, is not recorded. That bridge has no
 programmed scene: `/virtualbutton` answers a hundred slots under Lutron's default names,
 each with `IsProgrammed` false.
 
