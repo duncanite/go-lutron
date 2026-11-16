@@ -18,21 +18,46 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/duncanite/go-lutron/leap"
 )
 
-// The errors a Bridge hands back, beside the transport's.
+// The errors a Bridge hands back, to test with errors.Is.
 var (
-	// ErrLevel: a level outside 0 to 100, or a fade that is negative.
-	ErrLevel = errors.New("not a level")
-	// ErrID: a zone's, a button's or a scene's id that is empty or is
-	// more than an id.
-	ErrID = errors.New("not an object's id")
+	// ErrCredentials: the credentials are no credentials, the bridge does
+	// not take them, or they do not take the bridge: the certificate
+	// pairing gave is not one this bridge signed, or the bridge's own
+	// does not chain to the root pairing gave. Trying again with the same
+	// credentials ends the same way; pairing again makes new ones.
+	//
+	// The bridge's refusal is known by its saying so. One that hangs up
+	// on a client without a word is an ErrLost, and so is one whose word
+	// a reset of the connection overtook, which Windows discards unread.
+	ErrCredentials = leap.ErrCredentials
+	// ErrNotFound: the bridge has no zone, button or scene of that id.
+	ErrNotFound = errors.New("the bridge has no such object")
+	// ErrRefused: the bridge answered a request with a status outside the
+	// 200s; the error carries the status as the bridge wrote it.
+	ErrRefused = leap.ErrStatus
 	// ErrAnswer: the bridge's answer lacks what was asked of it.
 	ErrAnswer = errors.New("the bridge's answer is not in the expected shape")
+	// ErrArgument: a level outside 0 to 100, a fade that is negative, an
+	// id that is empty or is more than an id; nothing was sent.
+	ErrArgument = errors.New("not a valid argument")
+	// ErrLost: the connection ended by itself; the error wraps what it
+	// died of. The Bridge is over, and Open makes another.
+	ErrLost = leap.ErrLost
+	// ErrClosed: the Bridge was closed by its owner.
+	ErrClosed = leap.ErrClosed
 )
+
+// ID is a bridge's identity: its serial number, as the bridge writes it
+// in its own entry of its devices. It is the same for as long as the
+// bridge is the same bridge, whatever its address and whoever is paired
+// with it.
+type ID string
 
 // The resources and the command types, as the bridge names them.
 const (
@@ -185,43 +210,119 @@ type ButtonEvent struct {
 	Type string
 }
 
-// Bridge is a connection to a Caséta bridge.
+// Bridge is a connection to a Caséta bridge. Its methods may be called
+// from several goroutines.
 type Bridge struct {
 	conn *leap.Conn
+	id   ID
+
+	// hearing is held by the one Watch that subscribes to buttons.
+	hearing chan struct{}
+
+	mu       sync.Mutex
+	watchers map[*watcher]struct{}
+	// heard is the buttons whose subscription the bridge granted.
+	heard map[string]struct{}
 }
 
-// Open connects to the bridge at host under the credentials pairing
-// gave; host may carry a port, and takes LEAP's when it does not.
-func Open(ctx context.Context, host string, credentials *leap.Credentials) (*Bridge, error) {
+// Open connects to the bridge at address under the credentials pairing
+// gave, and reads who it is; address may carry a port, and takes LEAP's
+// when it does not. It returns when the bridge has let the client in.
+func Open(ctx context.Context, address string, credentials *leap.Credentials) (*Bridge, error) {
 	config, err := leap.TLSConfig(credentials)
 	if err != nil {
 		return nil, err
 	}
 
 	// No port: a name, an IPv4 address, or an IPv6 one, bare or bracketed.
-	if _, _, err = net.SplitHostPort(host); err != nil {
-		host = net.JoinHostPort(strings.Trim(host, "[]"), leap.Port)
+	if _, _, err = net.SplitHostPort(address); err != nil {
+		address = net.JoinHostPort(strings.Trim(address, "[]"), leap.Port)
 	}
 
-	conn, err := leap.Dial(ctx, host, config)
+	conn, err := leap.Dial(ctx, address, config)
 	if err != nil {
+		return nil, mismatch(err)
+	}
+
+	bridge, err := New(ctx, conn)
+	if err != nil {
+		_ = conn.Close()
+
 		return nil, err
 	}
 
-	return New(conn), nil
+	return bridge, nil
 }
 
-// New is a bridge over a LEAP connection already made, which Close
-// closes.
-func New(conn *leap.Conn) *Bridge {
-	return &Bridge{conn: conn}
+// New is a bridge over a LEAP connection already made, which it reads
+// who the bridge is from, and which Close closes.
+func New(ctx context.Context, conn *leap.Conn) (*Bridge, error) {
+	bridge := &Bridge{
+		conn: conn, hearing: make(chan struct{}, 1), watchers: map[*watcher]struct{}{}, heard: map[string]struct{}{},
+	}
+
+	// A bridge lists itself first among its devices.
+	devices, err := bridge.Devices(ctx)
+	if err != nil {
+		return nil, mismatch(err)
+	}
+
+	// Its own entry is the first, and is /device/1: one that is another's
+	// would give the bridge that device's serial for a name.
+	if len(devices) == 0 || devices[0].ID() != "1" || devices[0].SerialNumber == 0 {
+		return nil, fmt.Errorf("%w: the bridge does not say who it is", ErrAnswer)
+	}
+
+	bridge.id = ID(strconv.FormatInt(devices[0].SerialNumber, 10))
+
+	conn.Unsolicited(bridge.unsolicited)
+
+	return bridge, nil
 }
 
-// Conn is the LEAP connection, for what this package has no word for.
+// mismatch is err as ErrCredentials, and as nothing else, when it is the
+// bridge refusing the client's certificate. The client refusing the
+// bridge's is one already.
+func mismatch(err error) error {
+	if errors.Is(err, ErrCredentials) {
+		return err
+	}
+
+	// A peer's refusal is an alert, which crypto/tls hands back as an
+	// error of a type it does not export: its text is all there is to
+	// tell it by. Under TLS 1.3 it comes with the first read, not with
+	// the handshake, as a connection lost; the cause is said and not
+	// wrapped, since credentials refused are no loss, and the two call
+	// for opposite things.
+	_, alert, alerted := strings.Cut(err.Error(), "remote error: tls: ")
+	if alerted && (strings.Contains(alert, "certificate") || strings.Contains(alert, "access denied")) {
+		return fmt.Errorf("%w: the bridge answered: %s", ErrCredentials, alert)
+	}
+
+	return err
+}
+
+// ID is who the bridge is.
+func (b *Bridge) ID() ID { return b.id }
+
+// Conn is the LEAP connection, for what this package has no word for. Its
+// handler for what the bridge sends unasked is the Bridge's: setting
+// another ends the zones' changes for every Watch.
 func (b *Bridge) Conn() *leap.Conn { return b.conn }
 
 // Close ends the connection.
-func (b *Bridge) Close() error { return b.conn.Close() }
+func (b *Bridge) Close() error {
+	return b.conn.Close()
+}
+
+// Done is closed when the Bridge is over: closed, or lost.
+func (b *Bridge) Done() <-chan struct{} { return b.conn.Done() }
+
+// Err is nil while the Bridge lives, ErrClosed after Close, and an
+// ErrLost with its cause when the connection ended by itself.
+func (b *Bridge) Err() error {
+	return b.conn.Err()
+}
 
 // Ping asks the bridge whether it is there, and returns the LEAP version
 // it answers with.
@@ -322,7 +423,7 @@ type zoneBody struct {
 // seconds, and fade is rounded down to them.
 func (b *Bridge) SetLevel(ctx context.Context, zone string, level int, fade time.Duration) error {
 	if level < 0 || level > maxLevel || fade < 0 {
-		return fmt.Errorf("%w: %d over %s", ErrLevel, level, fade)
+		return fmt.Errorf("%w: a level of %d over %s", ErrArgument, level, fade)
 	}
 
 	if fade == 0 {
@@ -369,48 +470,6 @@ func (b *Bridge) Run(ctx context.Context, scene string) error {
 	return b.command(ctx, "/virtualbutton/", scene, command{CommandType: commandPress})
 }
 
-// WatchZones calls handler with every zone's status as it changes, from
-// now until the connection ends. A Caséta bridge is not subscribed to
-// for these: it sends them with no tag. So this takes the connection's
-// unsolicited handler, the only one it has, and a second call replaces
-// the first's handler. The open implementations read each zone once
-// before relying on these, and whether a bridge sends a zone's changes
-// to a connection that never read it is not known: read the zones with
-// Zone first. handler runs under the rules
-// leap.Conn.Subscribe gives: promptly, and without a request of its own.
-func (b *Bridge) WatchZones(handler func(ZoneStatus)) {
-	b.conn.Unsolicited(func(message leap.Message) {
-		if message.Header.MessageBodyType != bodyZoneStatus {
-			return
-		}
-
-		var body zoneBody
-		if message.Decode(&body) == nil && body.ZoneStatus != nil {
-			handler(*body.ZoneStatus)
-		}
-	})
-}
-
-// WatchButton calls handler with every press and release of the button
-// with this id, under the same rules.
-func (b *Bridge) WatchButton(ctx context.Context, button string, handler func(ButtonEvent)) error {
-	if err := checkID(button); err != nil {
-		return err
-	}
-
-	_, err := b.conn.Subscribe(ctx, "/button/"+button+"/status/event", func(message leap.Message) {
-		var body struct {
-			ButtonStatus buttonStatus `json:"ButtonStatus"` //nolint:tagliatelle // the bridge's keys are PascalCase
-		}
-
-		if message.Decode(&body) == nil && body.ButtonStatus.ButtonEvent.EventType != "" {
-			handler(ButtonEvent{Button: body.ButtonStatus.Button, Type: body.ButtonStatus.ButtonEvent.EventType})
-		}
-	})
-
-	return err
-}
-
 type (
 	buttonStatus struct {
 		Button      Ref         `json:"Button"`      //nolint:tagliatelle // the bridge's keys are PascalCase
@@ -440,10 +499,24 @@ type (
 func (b *Bridge) read(ctx context.Context, url string, into any) error {
 	answer, err := b.conn.Request(ctx, leap.Read, url, nil)
 	if err != nil {
-		return err
+		return absent(answer, err)
 	}
 
 	return answer.Decode(into)
+}
+
+// absent is err as ErrNotFound when it is the bridge answering that it
+// has no such object.
+func absent(answer *leap.Message, err error) error {
+	const notFound = 404
+
+	if answer != nil && errors.Is(err, leap.ErrStatus) {
+		if code, _ := answer.Status(); code == notFound {
+			return fmt.Errorf("%w: %w", ErrNotFound, err)
+		}
+	}
+
+	return err
 }
 
 // command sends a command to the processor of the object of this kind
@@ -453,15 +526,15 @@ func (b *Bridge) command(ctx context.Context, kind, id string, body command) err
 		return err
 	}
 
-	_, err := b.conn.Request(ctx, leap.Create, kind+id+"/commandprocessor", commandBody{Command: body})
+	answer, err := b.conn.Request(ctx, leap.Create, kind+id+"/commandprocessor", commandBody{Command: body})
 
-	return err
+	return absent(answer, err)
 }
 
 // checkID refuses an id that would change which URL a request goes to.
 func checkID(id string) error {
 	if id == "" || strings.ContainsAny(id, "/?") {
-		return fmt.Errorf("%w: %s", ErrID, strconv.Quote(id))
+		return fmt.Errorf("%w: the id %s", ErrArgument, strconv.Quote(id))
 	}
 
 	return nil

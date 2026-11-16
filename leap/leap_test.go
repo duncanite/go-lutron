@@ -331,12 +331,17 @@ func TestTheConnectionEnds(t *testing.T) {
 		t.Fatalf("the connection did not end within %s of the bridge hanging up", wait)
 	}
 
-	if err := conn.Err(); !errors.Is(err, leap.ErrClosed) {
-		t.Fatalf("after the bridge hung up: %v", err)
+	if err := conn.Err(); !errors.Is(err, leap.ErrLost) || errors.Is(err, leap.ErrClosed) {
+		t.Fatalf("after the bridge hung up: %v, want ErrLost and not ErrClosed", err)
 	}
 
-	if _, err := conn.Request(t.Context(), leap.Read, leaptest.PingURL, nil); !errors.Is(err, leap.ErrClosed) {
-		t.Fatalf("a request on an ended connection: %v", err)
+	if _, err := conn.Request(t.Context(), leap.Read, leaptest.PingURL, nil); !errors.Is(err, leap.ErrLost) {
+		t.Fatalf("a request on a lost connection: %v", err)
+	}
+
+	// Closing what is lost changes nothing of why it ended.
+	if err := conn.Close(); err != nil || !errors.Is(conn.Err(), leap.ErrLost) {
+		t.Fatalf("Close of a lost connection = %v, Err = %v", err, conn.Err())
 	}
 
 	again := dial(t, bridge, bridge.Credentials())
@@ -349,8 +354,8 @@ func TestTheConnectionEnds(t *testing.T) {
 		t.Fatalf("closing twice: %v", err)
 	}
 
-	if err := again.Err(); !errors.Is(err, leap.ErrClosed) {
-		t.Fatalf("after Close: %v", err)
+	if err := again.Err(); !errors.Is(err, leap.ErrClosed) || errors.Is(err, leap.ErrLost) {
+		t.Fatalf("after Close: %v, want ErrClosed and not ErrLost", err)
 	}
 }
 
@@ -497,7 +502,7 @@ func TestTheWire(t *testing.T) {
 			t.Fatal("the connection outlived a line that is not JSON")
 		}
 
-		if err := conn.Err(); !errors.Is(err, leap.ErrMessage) || !errors.Is(err, leap.ErrClosed) {
+		if err := conn.Err(); !errors.Is(err, leap.ErrMessage) || !errors.Is(err, leap.ErrLost) {
 			t.Fatalf("after a line that is not JSON: %v", err)
 		}
 	})
@@ -605,7 +610,7 @@ func TestTheWire(t *testing.T) {
 
 		select {
 		case err := <-failed:
-			if !errors.Is(err, context.DeadlineExceeded) || !errors.Is(err, leap.ErrClosed) {
+			if !errors.Is(err, context.DeadlineExceeded) || !errors.Is(err, leap.ErrLost) {
 				t.Fatalf("a request the bridge never read: %v", err)
 			}
 		case <-time.After(wait):
@@ -613,7 +618,7 @@ func TestTheWire(t *testing.T) {
 		}
 
 		// Half a line may be on the wire: the connection is over.
-		if _, err := conn.Request(t.Context(), leap.Read, "/device", nil); !errors.Is(err, leap.ErrClosed) {
+		if _, err := conn.Request(t.Context(), leap.Read, "/device", nil); !errors.Is(err, leap.ErrLost) {
 			t.Fatalf("a request after a write cut short: %v", err)
 		}
 	})

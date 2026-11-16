@@ -15,6 +15,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/json"
 	"encoding/pem"
+	"io"
 	"math/big"
 	"net"
 	"sync"
@@ -29,6 +30,26 @@ const (
 	PingURL     = "/server/1/status/ping"
 	LEAPVersion = 1.115
 )
+
+// DevicesURL is the bridge's devices; a new Bridge holds one there,
+// itself.
+const DevicesURL = "/device"
+
+// Serial is the serial number a new Bridge gives itself.
+const Serial = 1001
+
+// lingering is how long the bridge waits for a client it refused to hang
+// up first.
+const lingering = 5 * time.Second
+
+// Itself is the bridge's own entry among its devices, which a bridge
+// lists first: a test that sets the devices puts it there.
+func Itself() map[string]any {
+	return map[string]any{
+		"href": "/device/1", "Name": "Smart Bridge", "FullyQualifiedName": []string{"Smart Bridge"},
+		"DeviceType": "SmartBridge", "ModelNumber": "L-BDG2-WH", "SerialNumber": Serial,
+	}
+}
 
 // What the bridge writes in its answers.
 const (
@@ -99,12 +120,23 @@ type Bridge struct {
 	bootstrap *authority
 	app       tls.Certificate
 	appPEM    [2][]byte
-	leap      net.Listener
-	pairing   net.Listener
-	pressed   chan struct{}
-	press     sync.Once
+	// address is the LEAP port's, kept so that a bridge that was away
+	// comes back where it was.
+	address string
+	secured *tls.Config
+	pairing net.Listener
+	pressed chan struct{}
+	press   sync.Once
 
-	mu            sync.Mutex
+	mu sync.Mutex
+	// leap is the LEAP port's listener; nil while the bridge is away.
+	leap net.Listener
+	// named is the server names clients asked the LEAP port for.
+	named []string
+	// signer signs the clients' certificates, and is whom the LEAP port
+	// takes them from: Revoke replaces it.
+	signer        *authority
+	refused       map[string]string
 	resources     map[string]resource
 	commands      []Command
 	subscriptions []subscription
@@ -119,24 +151,53 @@ func New() *Bridge {
 		authority: newAuthority("Lutron test bridge root"),
 		bootstrap: newAuthority("Lutron test pairing root"),
 		pressed:   make(chan struct{}),
+		refused:   map[string]string{},
 		resources: map[string]resource{},
 	}
+	bridge.signer = bridge.authority
 	bridge.app, bridge.appPEM = bridge.bootstrap.issuePEM("the app", x509.ExtKeyUsageClientAuth)
 
-	bridge.leap = listen(&tls.Config{
-		MinVersion:   tls.VersionTLS12,
-		Certificates: []tls.Certificate{bridge.authority.issue("bridge", x509.ExtKeyUsageServerAuth)},
-		ClientAuth:   tls.RequireAndVerifyClientCert,
-		ClientCAs:    bridge.authority.pool(),
-	})
+	served := bridge.authority.issue("bridge", x509.ExtKeyUsageServerAuth)
+	placeholder := newAuthority("a bridge asked for by name").issue("placeholder", x509.ExtKeyUsageServerAuth)
+
+	// Read at each handshake: whom the port takes a client from changes
+	// when the clients are revoked.
+	bridge.secured = &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		GetConfigForClient: func(hello *tls.ClientHelloInfo) (*tls.Config, error) {
+			bridge.mu.Lock()
+			defer bridge.mu.Unlock()
+
+			certificate := served
+
+			// A bridge asked for by a name answers with a certificate of
+			// its own signing, which its root does not sign: seen on a
+			// Smart Bridge reached by its mDNS name, and not by its
+			// address.
+			if hello.ServerName != "" {
+				bridge.named = append(bridge.named, hello.ServerName)
+				certificate = placeholder
+			}
+
+			return &tls.Config{
+				MinVersion:   tls.VersionTLS12,
+				Certificates: []tls.Certificate{certificate},
+				ClientAuth:   tls.RequireAndVerifyClientCert,
+				ClientCAs:    bridge.signer.pool(),
+			}, nil
+		},
+	}
+	bridge.leap = listen(bridge.secured, "127.0.0.1:0")
+	bridge.address = bridge.leap.Addr().String()
 	bridge.pairing = listen(&tls.Config{
 		MinVersion:   tls.VersionTLS12,
 		Certificates: []tls.Certificate{bridge.bootstrap.issue("bridge", x509.ExtKeyUsageServerAuth)},
 		ClientAuth:   tls.RequireAndVerifyClientCert,
 		ClientCAs:    bridge.bootstrap.pool(),
-	})
+	}, "127.0.0.1:0")
 
 	bridge.Set(PingURL, "OnePingResponse", map[string]any{"PingResponse": map[string]any{"LEAPVersion": LEAPVersion}})
+	bridge.Set(DevicesURL, "MultipleDeviceDefinition", map[string]any{"Devices": []map[string]any{Itself()}})
 
 	go accept(bridge.leap, bridge.serve)
 	go accept(bridge.pairing, bridge.pair)
@@ -145,7 +206,7 @@ func New() *Bridge {
 }
 
 // Addr is the LEAP port's address, host and port.
-func (b *Bridge) Addr() string { return b.leap.Addr().String() }
+func (b *Bridge) Addr() string { return b.address }
 
 // PairingAddr is the pairing port's address, host and port.
 func (b *Bridge) PairingAddr() string { return b.pairing.Addr().String() }
@@ -180,11 +241,72 @@ func (b *Bridge) Credentials() *leap.Credentials {
 		panic(err)
 	}
 
+	b.mu.Lock()
+	signer := b.signer
+	b.mu.Unlock()
+
 	return &leap.Credentials{
 		Key:         pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: der}),
-		Certificate: b.authority.sign("a test client", &key.PublicKey, x509.ExtKeyUsageClientAuth),
+		Certificate: signer.sign("a test client", &key.PublicKey, x509.ExtKeyUsageClientAuth),
 		Root:        b.authority.pem(),
 	}
+}
+
+// Revoke makes the bridge forget every client: the credentials it issued
+// or paired so far are refused at the LEAP port, as a bridge's are after
+// it is reset, and those it issues from now on are taken. Connections
+// already made stay.
+func (b *Bridge) Revoke() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	b.signer = newAuthority("Lutron test bridge clients, anew")
+}
+
+// Refuse makes the bridge answer every request for url, of any kind, with
+// status, "500 InternalServerError" or any other outside the 200s; an
+// empty status makes it answer as before.
+func (b *Bridge) Refuse(url, status string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if status == "" {
+		delete(b.refused, url)
+
+		return
+	}
+
+	b.refused[url] = status
+}
+
+// Away takes the bridge off the network: it hangs up on every LEAP
+// connection and refuses new ones, until Back.
+func (b *Bridge) Away() {
+	b.mu.Lock()
+	listener := b.leap
+	b.leap = nil
+	b.mu.Unlock()
+
+	if listener != nil {
+		_ = listener.Close()
+	}
+
+	b.Drop()
+}
+
+// Back puts a bridge that was away on the network again, at the address
+// it had.
+func (b *Bridge) Back() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.leap != nil {
+		return
+	}
+
+	b.leap = listen(b.secured, b.address)
+
+	go accept(b.leap, b.serve)
 }
 
 // Press presses the bridge's button: pairing connections waiting for it
@@ -279,6 +401,23 @@ func (b *Bridge) Unsolicited(url, bodyType string, body any) {
 	}
 }
 
+// Named is the server names clients asked the LEAP port for, in order: a
+// client of a bridge sends none.
+func (b *Bridge) Named() []string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	return append([]string(nil), b.named...)
+}
+
+// Connected is how many LEAP connections the bridge holds now.
+func (b *Bridge) Connected() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	return len(b.clients)
+}
+
 // Drop hangs up on every LEAP connection, as a bridge that restarts.
 func (b *Bridge) Drop() {
 	b.mu.Lock()
@@ -294,7 +433,8 @@ func (b *Bridge) Drop() {
 
 // Close stops both ports and hangs up.
 func (b *Bridge) Close() {
-	_ = b.leap.Close()
+	b.Away()
+
 	_ = b.pairing.Close()
 	b.Press()
 	b.Drop()
@@ -308,7 +448,28 @@ func (b *Bridge) serve(conn net.Conn) {
 	b.clients = append(b.clients, connected)
 	b.mu.Unlock()
 
-	defer func() { _ = conn.Close() }()
+	defer func() {
+		_ = conn.Close()
+
+		b.mu.Lock()
+		defer b.mu.Unlock()
+
+		for index, held := range b.clients {
+			if held == connected {
+				b.clients = append(b.clients[:index], b.clients[index+1:]...)
+
+				return
+			}
+		}
+	}()
+
+	if secured, ok := conn.(*tls.Conn); ok {
+		if err := secured.Handshake(); err != nil { //nolint:noctx // the listener's own connection, ended by Close
+			refuse(secured.NetConn())
+
+			return
+		}
+	}
 
 	reader := bufio.NewReader(conn)
 
@@ -333,6 +494,13 @@ func (b *Bridge) answer(from *client, request *leap.Message) *leap.Message {
 
 	answer := &leap.Message{Header: leap.Header{ClientTag: request.Header.ClientTag, URL: request.Header.URL}}
 	found, known := b.resources[request.Header.URL]
+
+	if status, refused := b.refused[request.Header.URL]; refused {
+		answer.CommuniqueType = "ExceptionResponse"
+		answer.Header.StatusCode = status
+
+		return answer
+	}
 
 	switch request.CommuniqueType {
 	case leap.Read:
@@ -386,6 +554,22 @@ func (b *Bridge) answer(from *client, request *leap.Message) *leap.Message {
 	}
 
 	return answer
+}
+
+// refuse ends a connection whose handshake the bridge failed, so that
+// the alert saying why is read. Under TLS 1.3 a client's certificate is
+// refused after the client's own handshake is over, with its first
+// request on the way: closing with that request unread resets the
+// connection, and on Windows a reset discards what the client had not
+// read yet, the alert with it. So the bridge sends no more, and reads
+// until the client hangs up.
+func refuse(conn net.Conn) {
+	if sending, ok := conn.(interface{ CloseWrite() error }); ok {
+		_ = sending.CloseWrite()
+	}
+
+	_ = conn.SetReadDeadline(time.Now().Add(lingering))
+	_, _ = io.Copy(io.Discard, conn)
 }
 
 // pair is one pairing connection: nothing until the button, then the
@@ -448,7 +632,11 @@ func (b *Bridge) pair(conn net.Conn) {
 	garbled := b.garbled
 	b.mu.Unlock()
 
-	signed := string(b.authority.sign(csr.Subject.CommonName, csr.PublicKey, x509.ExtKeyUsageClientAuth))
+	b.mu.Lock()
+	signer := b.signer
+	b.mu.Unlock()
+
+	signed := string(signer.sign(csr.Subject.CommonName, csr.PublicKey, x509.ExtKeyUsageClientAuth))
 	if garbled {
 		signed = "not a certificate"
 	}
@@ -476,8 +664,8 @@ func (b *Bridge) pair(conn net.Conn) {
 	_, _ = conn.Write(append(answer, '\r', '\n'))
 }
 
-func listen(config *tls.Config) net.Listener {
-	listener, err := tls.Listen("tcp", "127.0.0.1:0", config)
+func listen(config *tls.Config, address string) net.Listener {
+	listener, err := tls.Listen("tcp", address, config)
 	if err != nil {
 		panic(err)
 	}

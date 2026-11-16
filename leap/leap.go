@@ -51,8 +51,12 @@ const maxLine = 4 << 20
 
 // The errors a Conn hands back, to test with errors.Is.
 var (
-	// ErrClosed: the connection ended, by Close or by the bridge.
+	// ErrClosed: the connection was closed by its owner, with Close.
 	ErrClosed = errors.New("the connection to the bridge is closed")
+	// ErrLost: the connection ended by itself: the bridge hung up, the
+	// network went, or a line could not be written or read. The error
+	// wraps what it died of. The Conn is over; Dial makes another.
+	ErrLost = errors.New("the connection to the bridge is lost")
 	// ErrStatus: the bridge answered a request with a status outside
 	// the 200s; the error carries the status as the bridge wrote it.
 	ErrStatus = errors.New("the bridge refused the request")
@@ -76,7 +80,18 @@ type Message struct {
 	CommuniqueType string          `json:"CommuniqueType,omitempty"` //nolint:tagliatelle // the bridge's keys are PascalCase
 	Header         Header          `json:"Header"`                   //nolint:tagliatelle // the bridge's keys are PascalCase
 	Body           json.RawMessage `json:"Body,omitempty"`           //nolint:tagliatelle // the bridge's keys are PascalCase
+
+	// received is the message's place among those its connection read.
+	received uint64
 }
+
+// Received is the message's place among those its Conn read from the
+// bridge, counted from one: of two messages, the one the bridge sent
+// later has the greater. An answer comes back to its requester while the
+// messages nobody asked for go to their handler on another goroutine, so
+// their order of arrival in a program says nothing: this does. It is zero
+// for a message that was not read from a bridge.
+func (m *Message) Received() uint64 { return m.received }
 
 // Status splits the header's status, "200 OK", into its code and text;
 // the code is zero when the header has none or it does not start with a
@@ -113,6 +128,8 @@ func (m *Message) Decode(into any) error {
 type Conn struct {
 	conn net.Conn
 	next atomic.Uint64
+	// count is how many messages were read; the reading goroutine's own.
+	count uint64
 
 	// writing serializes whole lines onto the connection.
 	writing sync.Mutex
@@ -129,14 +146,48 @@ type Conn struct {
 // returns the connection. TLSConfig makes the config from what pairing
 // gave.
 func Dial(ctx context.Context, addr string, config *tls.Config) (*Conn, error) {
-	dialer := &tls.Dialer{Config: config}
+	conn, err := DialTLS(ctx, addr, config)
+	if err != nil {
+		return nil, err
+	}
 
-	conn, err := dialer.DialContext(ctx, "tcp", addr)
+	return New(conn), nil
+}
+
+// DialTLS makes a TLS connection to one of a bridge's ports, LEAP's or
+// the pairing port, under config, and returns it once the handshake is
+// done.
+//
+// No server name is sent, whatever the host in addr and whatever config
+// names: a bridge's certificate names no host, and a bridge asked for one
+// by name answers with another certificate, which its root does not sign.
+// So config has to verify the bridge by itself, as TLSConfig's does: one
+// that leaves the check of a name to crypto/tls is refused by it.
+func DialTLS(ctx context.Context, addr string, config *tls.Config) (net.Conn, error) {
+	if config == nil {
+		return nil, fmt.Errorf("%w: no TLS configuration for %s", ErrCredentials, addr)
+	}
+
+	var dialer net.Dialer
+
+	raw, err := dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("connecting to the bridge at %s: %w", addr, err)
 	}
 
-	return New(conn), nil
+	// tls.Dialer would fill the name in from addr: the handshake is done
+	// here, over a connection made without it.
+	unnamed := config.Clone()
+	unnamed.ServerName = ""
+
+	secured := tls.Client(raw, unnamed)
+	if err = secured.HandshakeContext(ctx); err != nil {
+		_ = raw.Close()
+
+		return nil, fmt.Errorf("connecting to the bridge at %s: %w", addr, err)
+	}
+
+	return secured, nil
 }
 
 // New speaks LEAP over a connection already made, and owns it from here:
@@ -192,8 +243,8 @@ func (c *Conn) Done() <-chan struct{} {
 	return c.done
 }
 
-// Err is why the connection ended: ErrClosed after Close, the reading
-// error otherwise, nil while it is open.
+// Err is why the connection ended: ErrClosed after Close, an ErrLost with
+// its cause when it ended by itself, nil while it is open.
 func (c *Conn) Err() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -201,7 +252,8 @@ func (c *Conn) Err() error {
 	return c.err
 }
 
-// Close ends the connection. Requests still waiting return ErrClosed.
+// Close ends the connection. Requests still waiting return ErrClosed. A
+// connection already lost stays lost.
 func (c *Conn) Close() error {
 	c.fail(ErrClosed)
 
@@ -323,11 +375,14 @@ func (c *Conn) write(ctx context.Context, message *Message) error {
 		}
 
 		// Part of a line may be on the wire: nothing after it would parse.
-		c.fail(fmt.Errorf("%w: writing to the bridge: %w", ErrClosed, err))
+		c.fail(fmt.Errorf("%w: writing to the bridge: %w", ErrLost, err))
 
 		_ = c.conn.Close()
 
-		return fmt.Errorf("%w: writing to the bridge: %w", ErrClosed, err)
+		// What ended the connection, which this write may only have found
+		// ended: the bridge's last word, read a moment before, says more
+		// than a write to what is closed.
+		return c.Err()
 	}
 
 	return nil
@@ -346,7 +401,7 @@ func (c *Conn) read() {
 				err = fmt.Errorf("%w: a line over %d bytes", ErrMessage, maxLine)
 			}
 
-			c.fail(fmt.Errorf("%w: reading from the bridge: %w", ErrClosed, err))
+			c.fail(fmt.Errorf("%w: reading from the bridge: %w", ErrLost, err))
 
 			_ = c.conn.Close()
 
@@ -360,12 +415,16 @@ func (c *Conn) read() {
 
 		var message Message
 		if err := json.Unmarshal(line, &message); err != nil {
-			c.fail(fmt.Errorf("%w: %w: %w", ErrClosed, ErrMessage, err))
+			c.fail(fmt.Errorf("%w: %w: %w", ErrLost, ErrMessage, err))
 
 			_ = c.conn.Close()
 
 			return
 		}
+
+		// The reading goroutine alone counts, in the order of the wire.
+		c.count++
+		message.received = c.count
 
 		c.dispatch(message)
 	}

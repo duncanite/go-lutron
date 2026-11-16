@@ -10,7 +10,7 @@ import (
 	"github.com/forkcloser/xos"
 	"github.com/mycophonic/primordium/filesystem"
 
-	"github.com/duncanite/go-lutron/credentials"
+	"github.com/duncanite/go-lutron/internal/credentials"
 	"github.com/duncanite/go-lutron/leap"
 )
 

@@ -31,6 +31,7 @@ func house(t *testing.T) (*leaptest.Bridge, string) {
 	ref := func(href string) map[string]any { return map[string]any{"href": href} }
 
 	bridge.Set("/device", "MultipleDeviceDefinition", map[string]any{"Devices": []map[string]any{
+		leaptest.Itself(),
 		{
 			"href": "/device/2", "Name": "Lights", "FullyQualifiedName": []string{"Hallway", "Lights"},
 			"SerialNumber": 2345, "ModelNumber": "PD-6WCL-XX", "DeviceType": "WallDimmer",
@@ -130,6 +131,7 @@ func TestTheCommands(t *testing.T) {
 	}{
 		{[]string{"ping"}, "LEAP 1.115"},
 		{[]string{"devices"}, "DEVICE  NAME            TYPE                   MODEL       SERIAL  FIRMWARE         ZONE  BUTTONS"},
+		{[]string{"devices"}, "1       Smart Bridge    SmartBridge            L-BDG2-WH   1001"},
 		{[]string{"devices"}, "2       Hallway Lights  WallDimmer             PD-6WCL-XX  2345    001.019.000r000  1"},
 		// The Pico's answer carries no firmware: the column is empty.
 		{[]string{"devices"}, "8       Bedroom Pico    Pico3ButtonRaiseLower  PJ2-3BRL    4567                           101=0"},
@@ -201,8 +203,8 @@ func TestTheErrors(t *testing.T) {
 		want string
 	}{
 		{dir, []string{"level", "kitchen"}, `no zone by that id or name: "kitchen"`},
-		{dir, []string{"set", "1", "101"}, "not a level"},
-		{dir, []string{"press", "1/2"}, "not an object's id"},
+		{dir, []string{"set", "1", "101"}, "not a valid argument: a level of 101"},
+		{dir, []string{"press", "1/2"}, `not a valid argument: the id "1/2"`},
 		{dir, []string{"call", "ReadRequest", "/nothing"}, `"StatusCode": "404 NotFound"`},
 		{dir, []string{"call", "ReadRequest", "/nothing"}, "the bridge refused the request"},
 		{dir, []string{"call", "CreateRequest", "/zone/1/commandprocessor", "{not json"}, "the body is not JSON"},
@@ -412,7 +414,8 @@ func TestPairBeforeTheButton(t *testing.T) {
 		"127.0.0.1": "127.0.0.1:8083", "::1": "[::1]:8083", "[::1]": "[::1]:8083", "127.0.0.1:1": "127.0.0.1:1",
 	} {
 		out, status = pair(host, filepath.Join(t.TempDir(), "c"), "--timeout", "2s")
-		if status != cli.ExitError || !strings.Contains(out, "pairing port at "+dialled+":") {
+		if status != cli.ExitError ||
+			!strings.Contains(out, "the pairing port: connecting to the bridge at "+dialled+":") {
 			t.Fatalf("%s: %d\n%s\nwant a dial of %s", host, status, out, dialled)
 		}
 	}
@@ -477,7 +480,7 @@ func TestANameTwoRoomsShare(t *testing.T) {
 	}
 
 	bridge.Set("/device", "MultipleDeviceDefinition", map[string]any{"Devices": []map[string]any{
-		device("2", "Kitchen", "1"), device("3", "Bedroom", "5"),
+		leaptest.Itself(), device("2", "Kitchen", "1"), device("3", "Bedroom", "5"),
 	}})
 
 	dir := t.TempDir()
@@ -527,7 +530,6 @@ func TestWatchCommand(t *testing.T) {
 
 	// Each zone is read once first, and printed where it stands.
 	await(t, &out, "zone 1 is at 75")
-	await(t, &out, "watching the zones and 1 buttons")
 
 	bridge.Unsolicited("/zone/1/status", "OneZoneStatus", map[string]any{
 		"ZoneStatus": map[string]any{"Level": 30, "Zone": map[string]any{"href": "/zone/1"}},
