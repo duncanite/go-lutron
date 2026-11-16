@@ -20,7 +20,7 @@ import (
 	"github.com/forkcloser/xos"
 
 	"github.com/duncanite/go-lutron/caseta"
-	"github.com/duncanite/go-lutron/credentials"
+	"github.com/duncanite/go-lutron/internal/credentials"
 	"github.com/duncanite/go-lutron/leap"
 )
 
