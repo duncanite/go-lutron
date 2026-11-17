@@ -92,6 +92,11 @@ and what was not tried.
 - **A Caséta bridge is not known to say that its devices changed.** `Watch` tells the
   devices and the buttons as they were when it started; a device added, removed or
   renamed is seen by watching again.
+- **How things stand ends with a mark.** `Watch` tells every device, every button and
+  what every zone is at, then `Settled`, once, then what happens. A consumer that kept
+  devices from before removes the ones it was not told of by then, and only then: no
+  event of another kind says it, since a bridge with no zone and no button has none to
+  send.
 - **A subscription is registered before its request leaves,** so no event can arrive
   ahead of its handler, and a refused one is forgotten on the reading goroutine, so a
   message right behind the refusal finds none. The open implementations register after

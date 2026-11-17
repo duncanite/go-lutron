@@ -8,14 +8,21 @@ import (
 	"github.com/duncanite/go-lutron/leap"
 )
 
-// Event is something a bridge says: a Device or a Button as it is
-// described, a ZoneStatus, a ButtonEvent, and nothing else.
+// Event is something a Watch tells: a Device or a Button as the bridge
+// describes it, a ZoneStatus, a ButtonEvent, Settled, and nothing else.
 type Event interface{ event() }
+
+// Settled is the mark between how things stood and what happens: a Watch
+// tells it once, when every device, every button and what every zone is at
+// has been told. What a consumer kept from before and was not told of by
+// then, the bridge has no more.
+type Settled struct{}
 
 func (Device) event()      {}
 func (Button) event()      {}
 func (ZoneStatus) event()  {}
 func (ButtonEvent) event() {}
+func (Settled) event()     {}
 
 // maxBehind is how many events a watcher may leave unread before Watch
 // gives up on it.
@@ -25,9 +32,12 @@ const maxBehind = 1024
 var errBehind = errors.New("the watcher fell behind")
 
 // Watch tells handle first how things stand: every device as the bridge
-// describes it, every button, and what every zone is at; and then
-// everything that happens, a zone's change and a button's press and
-// release, for as long as ctx lasts. Nothing falls between the two.
+// describes it, every button, and what every zone is at; then Settled,
+// once; and then everything that happens, a zone's change and a button's
+// press and release, for as long as ctx lasts. Nothing falls between the
+// two: what the bridge said while things were read is told before
+// Settled, a zone's change in the place of what was read, and a button's
+// press as it came.
 // Events come one at a time, on the goroutine that called Watch; handle
 // may take its time and may ask things of the Bridge. A button's presses
 // are occurrences: every one is told, in the order they happened. Of a
@@ -57,6 +67,8 @@ func (b *Bridge) Watch(ctx context.Context, handle func(Event)) error {
 		return err
 	}
 
+	settled := false
+
 	for {
 		events, behind := watching.take()
 		for _, event := range events {
@@ -65,6 +77,13 @@ func (b *Bridge) Watch(ctx context.Context, handle func(Event)) error {
 
 		if behind {
 			return fmt.Errorf("%w by more than %d events", errBehind, maxBehind)
+		}
+
+		// Every zone's status that was read is in what was just told.
+		if !settled {
+			settled = true
+
+			handle(Settled{})
 		}
 
 		select {

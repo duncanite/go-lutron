@@ -528,8 +528,10 @@ func TestWatchCommand(t *testing.T) {
 		done <- cli.Run(ctx, []string{"--host", bridge.Addr(), "--credentials", dir, "watch"}, &out, &out)
 	}()
 
-	// Each zone is read once first, and printed where it stands.
+	// Each zone is read once first, and printed where it stands; then
+	// the command says that what follows is what happens.
 	await(t, &out, "zone 1 is at 75")
+	await(t, &out, "watching\n")
 
 	bridge.Unsolicited("/zone/1/status", "OneZoneStatus", map[string]any{
 		"ZoneStatus": map[string]any{"Level": 30, "Zone": map[string]any{"href": "/zone/1"}},
