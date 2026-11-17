@@ -97,6 +97,17 @@ and what was not tried.
   devices from before removes the ones it was not told of by then, and only then: no
   event of another kind says it, since a bridge with no zone and no button has none to
   send.
+- **The mark is a promise, and what is left out has to keep it.** By `Settled` a
+  consumer may forget the devices and the buttons it was not told of, so only what the
+  bridge says it has none of is left out of them: no button, when it answers that it has
+  none, a 404 or a list that is empty, with or without a body. Buttons refused any
+  other way, the devices refused or listing none, and an answer that cannot be read end
+  the `Watch`: watching again is the answer to a bridge that was busy. A zone's status
+  is another matter, since the zone is known from its device and nothing is forgotten
+  on its account: a zone whose status the bridge refuses, or answers nothing of, is told
+  no status, where failing would fail every `Watch` the same way, for good. A button
+  whose presses the bridge will not tell ends the `Watch`, since nothing would show
+  them missing.
 - **A subscription is registered before its request leaves,** so no event can arrive
   ahead of its handler, and a refused one is forgotten on the reading goroutine, so a
   message right behind the refusal finds none. The open implementations register after

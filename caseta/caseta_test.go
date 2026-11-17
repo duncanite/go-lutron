@@ -539,21 +539,24 @@ func TestWatchASlowHandler(t *testing.T) {
 }
 
 // TestWatchEnds: a Watch ends when the bridge goes, saying it is lost,
-// and at once when the Bridge is over; a zone the bridge does not answer
-// for ends it with that error, and the Bridge still stands.
+// and at once when the Bridge is over; devices the bridge refuses end it
+// with that error, and the Bridge still stands.
 func TestWatchEnds(t *testing.T) {
 	t.Parallel()
 
 	fake, opened := bridge(t)
 
-	// No zone has a status yet: the first read is refused.
-	if err := opened.Watch(t.Context(), func(caseta.Event) {}); !errors.Is(err, caseta.ErrNotFound) {
-		t.Fatalf("Watch of a bridge that lacks a zone's status = %v, want ErrNotFound", err)
+	fake.Refuse(leaptest.DevicesURL, "500 InternalServerError")
+
+	if err := refused(t, opened); !errors.Is(err, caseta.ErrRefused) {
+		t.Fatalf("Watch of a bridge that refuses its devices = %v, want ErrRefused", err)
 	}
 
 	if opened.Err() != nil {
 		t.Fatalf("Err after a Watch that failed = %v", opened.Err())
 	}
+
+	fake.Refuse(leaptest.DevicesURL, "")
 
 	_, ended, _ := standing(t, fake, opened)
 
@@ -589,6 +592,189 @@ func TestWatchEnds(t *testing.T) {
 
 	if err = again.Watch(t.Context(), func(caseta.Event) {}); !errors.Is(err, caseta.ErrClosed) {
 		t.Fatalf("Watch of a Bridge that is closed = %v", err)
+	}
+}
+
+// refused is what a Watch that ought to fail returns, bounded: one that
+// did not fail would otherwise never return.
+func refused(t *testing.T, opened *caseta.Bridge) error {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(t.Context(), wait)
+	defer cancel()
+
+	return opened.Watch(ctx, func(caseta.Event) {})
+}
+
+// told reads what a Watch tells up to the mark that it is all of how
+// things stand, and says how many devices and which buttons and zones.
+func told(t *testing.T, events chan caseta.Event) (devices int, buttons, zones string) {
+	t.Helper()
+
+	var button, zone []string
+
+	for {
+		switch event := next(t, events).(type) {
+		case caseta.Device:
+			devices++
+		case caseta.Button:
+			button = append(button, event.ID())
+		case caseta.ZoneStatus:
+			zone = append(zone, fmt.Sprint(event.Zone.ID(), "=", *event.Level))
+		case caseta.Settled:
+			return devices, strings.Join(button, " "), strings.Join(zone, " ")
+		default:
+			t.Fatalf("told %T before how things stand was all told", event)
+		}
+	}
+}
+
+// TestWatchLeavesOutWhatTheBridgeHasNot: a zone the bridge has no status
+// for, refuses the status of, or answers nothing of, is left out, and so
+// are the buttons of a bridge that says it has none; the rest is told,
+// the mark comes all the same, and a zone left out is told when it
+// changes. Buttons refused any other way, devices that are none, and an
+// answer that cannot be read end the Watch: by the mark a consumer
+// forgets what it was not told of.
+func TestWatchLeavesOutWhatTheBridgeHasNot(t *testing.T) {
+	t.Parallel()
+
+	fake, opened := bridge(t)
+
+	// No zone has a status yet, and the bridge says it has no button: the
+	// devices are how things stand, whole.
+	fake.Refuse("/button", "404 NotFound")
+
+	events, _, stop := watched(t, opened)
+
+	if devices, buttons, zones := told(t, events); devices != 11 || buttons != "" || zones != "" {
+		t.Fatalf("a bridge with no status and no button told %d devices, buttons %q, zones %q", devices, buttons, zones)
+	}
+
+	fake.Unsolicited("/zone/6/status", "OneZoneStatus", zoneStatus("6", 31))
+
+	if change, ok := next(t, events).(caseta.ZoneStatus); !ok || change.Zone.ID() != "6" || *change.Level != 31 {
+		t.Fatalf("after a zone that was left out changed, told %+v", change)
+	}
+
+	stop()
+
+	fake.Refuse("/button", "")
+
+	// Each way a zone has no status, and the buttons as a bridge with
+	// none answers them: a body that lists none, and no body at all.
+	fake.Set("/zone/1/status", "OneZoneStatus", zoneStatus("1", 10))
+	fake.Refuse("/zone/2/status", "500 InternalServerError")
+	fake.Refuse("/zone/6/status", "204 NoContent")
+	fake.Set("/zone/3/status", "OneZoneStatus", map[string]any{})
+	fake.Set("/zone/4/status", "OneZoneStatus", zoneStatus("4", 50))
+
+	for _, none := range []func(){
+		func() { fake.Set("/button", "MultipleButtonDefinition", map[string]any{}) },
+		func() { fake.Refuse("/button", "204 NoContent") },
+	} {
+		none()
+
+		events, _, stop = watched(t, opened)
+
+		if devices, buttons, zones := told(t, events); devices != 11 || buttons != "" || zones != "1=10 4=50" {
+			t.Fatalf("told %d devices, buttons %q, zones %q; want 11, none, 1=10 4=50", devices, buttons, zones)
+		}
+
+		stop()
+	}
+
+	// The bridge has its buttons and does not give them: nothing says it
+	// has none, and a Watch that went on would have them forgotten.
+	for _, status := range []string{"500 InternalServerError", "503 ServiceUnavailable", "401 Unauthorized"} {
+		fake.Refuse("/button", status)
+
+		if err := refused(t, opened); !errors.Is(err, caseta.ErrRefused) || errors.Is(err, caseta.ErrNotFound) {
+			t.Fatalf("Watch of a bridge that answers %s for its buttons = %v, want ErrRefused", status, err)
+		}
+	}
+
+	fake.Refuse("/button", "")
+
+	// A bridge lists itself: devices that are none, with a body or with
+	// none, are no answer.
+	fake.Refuse(leaptest.DevicesURL, "204 NoContent")
+
+	if err := refused(t, opened); !errors.Is(err, leap.ErrMessage) {
+		t.Fatalf("Watch of a bridge that answers its devices with no body = %v, want that it is no message", err)
+	}
+
+	fake.Refuse(leaptest.DevicesURL, "")
+
+	listed, err := opened.Devices(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fake.Set(leaptest.DevicesURL, "MultipleDeviceDefinition", map[string]any{})
+
+	if err = refused(t, opened); !errors.Is(err, caseta.ErrAnswer) {
+		t.Fatalf("Watch of a bridge that lists no device = %v, want ErrAnswer", err)
+	}
+
+	fake.Set(leaptest.DevicesURL, "MultipleDeviceDefinition", map[string]any{"Devices": listed})
+
+	fake.Set("/zone/3/status", "OneZoneStatus", "not a status")
+
+	if err := refused(t, opened); !errors.Is(err, caseta.ErrAnswer) {
+		t.Fatalf("Watch of a bridge whose answer for a zone cannot be read = %v, want ErrAnswer", err)
+	}
+
+	fake.Set("/zone/3/status", "OneZoneStatus", zoneStatus("3", 40))
+	fake.Refuse("/button", "")
+	fake.Set("/button", "MultipleButtonDefinition", "not buttons")
+
+	if err := refused(t, opened); !errors.Is(err, leap.ErrMessage) {
+		t.Fatalf("Watch of a bridge whose buttons cannot be read = %v, want that the answer is no message", err)
+	}
+
+	if opened.Err() != nil {
+		t.Fatalf("Err after Watches that failed = %v", opened.Err())
+	}
+}
+
+// TestACollectionTheBridgeHasNoneOf: a bridge that answers a collection
+// with no body, under a status in the 200s, has none; one object answered
+// so is an answer that cannot be read, and so are the devices, which a
+// bridge is always one of.
+func TestACollectionTheBridgeHasNoneOf(t *testing.T) {
+	t.Parallel()
+
+	fake, opened := bridge(t)
+
+	for _, url := range []string{"/area", "/button", "/virtualbutton", leaptest.DevicesURL, "/zone/1/status"} {
+		fake.Refuse(url, "204 NoContent")
+	}
+
+	if areas, err := opened.Areas(t.Context()); err != nil || len(areas) != 0 {
+		t.Fatalf("Areas = %v, %v", areas, err)
+	}
+
+	if buttons, err := opened.Buttons(t.Context()); err != nil || len(buttons) != 0 {
+		t.Fatalf("Buttons = %v, %v", buttons, err)
+	}
+
+	if scenes, err := opened.Scenes(t.Context()); err != nil || len(scenes) != 0 {
+		t.Fatalf("Scenes = %v, %v", scenes, err)
+	}
+
+	if devices, err := opened.Devices(t.Context()); !errors.Is(err, leap.ErrMessage) {
+		t.Fatalf("Devices answered with no body = %v, %v, want that it is no message", devices, err)
+	}
+
+	if status, err := opened.Zone(t.Context(), "1"); err == nil {
+		t.Fatalf("Zone answered with no body = %+v, want an error", status)
+	}
+
+	fake.Refuse(leaptest.PingURL, "204 NoContent")
+
+	if version, err := opened.Ping(t.Context()); err == nil {
+		t.Fatalf("Ping answered with no body = %v, want an error", version)
 	}
 }
 
@@ -841,7 +1027,7 @@ func TestAButtonRefused(t *testing.T) {
 
 	fake.Refuse("/button/102/status/event", "500 InternalServerError")
 
-	if err := opened.Watch(t.Context(), func(caseta.Event) {}); !errors.Is(err, caseta.ErrRefused) {
+	if err := refused(t, opened); !errors.Is(err, caseta.ErrRefused) {
 		t.Fatalf("Watch of a bridge that refuses a button = %v, want ErrRefused", err)
 	}
 

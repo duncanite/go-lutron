@@ -50,11 +50,25 @@ var errBehind = errors.New("the watcher fell behind")
 // or renamed: Watch tells the devices as they were when it started, and
 // calling it again reads them again.
 //
+// What is told by Settled is everything the bridge has: a consumer may
+// forget the devices and the buttons it was not told of. So only what
+// the bridge says it has none of is left out of them: no button is told
+// when it answers that it has none, an ErrNotFound or a list that is
+// empty. Its buttons refused any other way, its devices refused, and an
+// answer that cannot be read end the Watch, which watching again may
+// cure; so does a button whose presses the bridge will not tell, since
+// nothing would show them missing.
+//
+// A zone's status is another matter: the zone is known from its device,
+// and nothing is forgotten on its account. A zone whose status the
+// bridge refuses, or answers nothing of, is told no status, and its
+// changes are told all the same.
+//
 // Watch returns ctx's error when ctx ends. Sooner, it returns ErrClosed
 // when the Bridge was closed, an ErrLost when its connection ended by
-// itself, and any other error when a read failed or handle fell more
-// than a thousand events behind: the Bridge still stands, and may be
-// watched again.
+// itself, and any other error when such a read failed or handle fell
+// more than a thousand events behind: the Bridge still stands, and may
+// be watched again.
 func (b *Bridge) Watch(ctx context.Context, handle func(Event)) error {
 	watching := &watcher{latest: map[string]int{}, wake: make(chan struct{}, 1)}
 
@@ -112,8 +126,14 @@ func (b *Bridge) standing(ctx context.Context, watching *watcher, handle func(Ev
 		return err
 	}
 
+	// A bridge lists itself: no device is no answer, and told as how
+	// things stand it would have a consumer forget every one.
+	if len(devices) == 0 {
+		return fmt.Errorf("%w: the bridge lists no device", ErrAnswer)
+	}
+
 	buttons, err := b.Buttons(ctx)
-	if err != nil {
+	if err != nil && !errors.Is(err, ErrNotFound) {
 		return err
 	}
 
@@ -131,7 +151,7 @@ func (b *Bridge) standing(ctx context.Context, watching *watcher, handle func(Ev
 
 	for _, device := range devices {
 		for _, zone := range device.LocalZones {
-			if err = b.readZone(ctx, watching, zone.ID()); err != nil {
+			if err = b.readZone(ctx, watching, zone.ID()); err != nil && !errors.Is(err, ErrRefused) {
 				return err
 			}
 		}
@@ -141,7 +161,8 @@ func (b *Bridge) standing(ctx context.Context, watching *watcher, handle func(Ev
 }
 
 // readZone reads what a zone is at and queues it for the watcher, at its
-// place among what the bridge said meanwhile.
+// place among what the bridge said meanwhile. A zone the bridge answers
+// no status for is queued nothing.
 func (b *Bridge) readZone(ctx context.Context, watching *watcher, zone string) error {
 	if err := checkID(zone); err != nil {
 		return err
@@ -152,16 +173,18 @@ func (b *Bridge) readZone(ctx context.Context, watching *watcher, zone string) e
 		return absent(answer, err)
 	}
 
+	if len(answer.Body) == 0 {
+		return nil
+	}
+
 	var body zoneBody
 	if err = answer.Decode(&body); err != nil {
 		return fmt.Errorf("%w: %w", ErrAnswer, err)
 	}
 
-	if body.ZoneStatus == nil {
-		return fmt.Errorf("%w: no status for zone %s", ErrAnswer, zone)
+	if body.ZoneStatus != nil {
+		watching.zone(*body.ZoneStatus, answer.Received())
 	}
-
-	watching.zone(*body.ZoneStatus, answer.Received())
 
 	return nil
 }

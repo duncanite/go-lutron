@@ -361,7 +361,7 @@ func (b *Bridge) Areas(ctx context.Context) ([]Area, error) {
 		Areas []Area `json:"Areas"` //nolint:tagliatelle // the bridge's keys are PascalCase
 	}
 
-	if err := b.read(ctx, urlAreas, &body); err != nil {
+	if err := b.list(ctx, urlAreas, &body); err != nil {
 		return nil, err
 	}
 
@@ -374,7 +374,7 @@ func (b *Bridge) Buttons(ctx context.Context) ([]Button, error) {
 		Buttons []Button `json:"Buttons"` //nolint:tagliatelle // the bridge's keys are PascalCase
 	}
 
-	if err := b.read(ctx, urlButtons, &body); err != nil {
+	if err := b.list(ctx, urlButtons, &body); err != nil {
 		return nil, err
 	}
 
@@ -388,7 +388,7 @@ func (b *Bridge) Scenes(ctx context.Context) ([]Scene, error) {
 		VirtualButtons []Scene `json:"VirtualButtons"` //nolint:tagliatelle // the bridge's keys are PascalCase
 	}
 
-	if err := b.read(ctx, urlScenes, &body); err != nil {
+	if err := b.list(ctx, urlScenes, &body); err != nil {
 		return nil, err
 	}
 
@@ -500,6 +500,23 @@ func (b *Bridge) read(ctx context.Context, url string, into any) error {
 	answer, err := b.conn.Request(ctx, leap.Read, url, nil)
 	if err != nil {
 		return absent(answer, err)
+	}
+
+	return answer.Decode(into)
+}
+
+// list reads a collection a bridge may have none of, which it may then
+// answer with no body at all, under a status in the 200s: that is none,
+// and not an answer that cannot be read. The devices are not one: a
+// bridge lists itself.
+func (b *Bridge) list(ctx context.Context, url string, into any) error {
+	answer, err := b.conn.Request(ctx, leap.Read, url, nil)
+	if err != nil {
+		return absent(answer, err)
+	}
+
+	if len(answer.Body) == 0 {
+		return nil
 	}
 
 	return answer.Decode(into)
