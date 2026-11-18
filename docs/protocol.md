@@ -186,6 +186,11 @@ What worked, each as this document describes it:
 - `/device` carried each device's `FirmwareImage`, the bridge's own version and every
   other device's, the Picos' as `000.000.000r000`.
 
+What a bridge with no Pico answers for `/button` was not seen: this one has three.
+pylutron-caseta reads that answer as a body in which `Buttons` is absent, by the comment
+in its `_load_buttons`, and reads other collections a bridge has none of, occupancy groups
+among them, as an answer with no body at all. This module takes both for none.
+
 What was not tried: `Raise`, `Lower` and `Stop`, pressing a button or running a scene by
 command, Smart Away, occupancy groups, a request for a URL the bridge lacks, pairing
 without the identity, a signing request sent before the button, and credentials the

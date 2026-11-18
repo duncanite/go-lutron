@@ -448,6 +448,8 @@ func (*watchCommand) Run(ctx context.Context, root *rootCommand) error {
 			}
 		case caseta.ButtonEvent:
 			fmt.Fprintf(root.out, "button %s %s\n", told.Button.ID(), strings.ToLower(told.Type))
+		case caseta.Settled:
+			fmt.Fprintln(root.out, "watching")
 		}
 	})
 
