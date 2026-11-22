@@ -16,15 +16,17 @@ and what was not tried.
   exchange on the pairing port, and `TLSConfig` turns what it gave into what `Dial`
   needs. Standard library only.
 - `leap/leaptest`: a bridge for tests. Both TLS ports under authorities made for the
-  test, the pairing behind a button, LEAP over a table of resources, with commands
-  recorded, events emitted on demand, and lists answered in pages when told to.
+  test, on ports of the system's choosing or on LEAP's own, the pairing behind a button,
+  LEAP over a table of resources, with commands recorded, events emitted on demand, and
+  lists answered in pages when told to.
 - `caseta`: a Caséta bridge's objects over that wire. `Open` takes an address and the
   credentials and gives a `Bridge`, which has the bridge's `ID`; devices, with the
   firmware each runs, areas, buttons, scenes; `WriteDevices`, the listing a command
   prints; a zone's level; the commands a zone, a button and a scene take; `Watch`, how
   things stand and then what happens; `Close`, `Done` and `Err`. `Recognize` and `Find`
   tell a bridge on the network, through a `Browser` the caller lends.
-- `cmd/lutron` and `internal/cli`: the command, kong under primordium's process setup.
+- `cmd/lutron` and `internal/cli`: the command, kong under primordium's process setup,
+  with the Multicast DNS a bridge is searched for over.
 - `internal/credentials`: what pairing gave, as three files in a directory, the key
   private: `Reserve` before the bridge's button, `Save` after, `Load` for every later
   run. It is the command's: the library reads and writes no file, and takes and gives
@@ -110,6 +112,25 @@ and what was not tried.
   be dialled, in the order they came, or its host's name when there is none, each with
   LEAP's port. A host has several, and which one reaches the bridge depends on where
   the caller stands, which this module does not know: it does not pick.
+- **The command searches, and the credentials choose.** The command has the program's
+  Multicast DNS, [go-mdns](https://github.com/forkcloser/go-mdns), which a lint rule keeps
+  to `internal/cli`, and lends it to `Find`. With no `--host`, a command tries each
+  bridge that announces itself, at each address it gives, as soon as it is heard, and
+  speaks to the first that takes the credentials: what refuses them, or does not speak
+  as a bridge, is passed over, and named with what came of it when nothing else took
+  them: what a bridge answered, over an address that never did, since a silence says
+  nothing of credentials a bridge takes no more. The addresses are tried side by side, since a host announces addresses that do
+  not all reach it, and one that never answers is not to take the time of one that
+  does. `--wait` is how long bridges are heard for, and how long each address is given
+  to answer: a command ends as soon as a bridge is opened, and within twice `--wait`
+  when none is, however many announce themselves. The credentials hold no bridge's
+  serial, so the command does not check `Bridge.ID` against anything: where one root
+  signs for several bridges, which was not seen, `--host` says which. `pair` has no
+  credentials to choose with: it pairs with the one bridge that answers the search, and
+  among several it chooses none, since the button a person presses says which bridge is
+  meant and the command cannot see it. `discover` prints what was found, and asks for no
+  credentials. `leaptest.At` stands a test bridge on LEAP's own ports, where a found
+  address leads; the command's tests take the loopback's ports one test at a time.
 - **A Caséta bridge is not known to say that its devices changed.** `Watch` tells the
   devices and the buttons as they were when it started; a device added, removed or
   renamed is seen by watching again.

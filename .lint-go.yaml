@@ -11,15 +11,26 @@ golangci:
           main:
             # What the command is built on: the house application toolkit
             # for its process and its atomic writes, the CLI framework,
-            # and xos for reading files. The library is the standard
+            # xos for reading files, and the mDNS library, which the rule
+            # below keeps to the command. The library is the standard
             # library alone.
             allow:
               - github.com/mycophonic/primordium
               - github.com/forkcloser/xos
               - github.com/alecthomas/kong
+              - github.com/forkcloser/go-mdns
               # The key's access list on Windows, where a file's mode does
               # not say who may read it.
               - golang.org/x/sys/windows
+          search:
+            # mDNS is the command's: its port is one to a host and belongs
+            # to the program. The library says what a bridge is on the
+            # network, and is lent the means to look.
+            files:
+              - "!**/internal/cli/*.go"
+            deny:
+              - pkg: github.com/forkcloser/go-mdns
+                desc: the library opens no socket to search; it is lent a Browser
       forbidigo:
         forbid:
           # A file is opened, read, listed or stat'ed through xos, whose

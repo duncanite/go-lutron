@@ -1,6 +1,6 @@
-// Package cli is the lutron command: pairing with a bridge, what it
-// holds, its zones' levels, the commands a zone, a button and a scene
-// take, its events, and call for the rest. The wiring of flags and
+// Package cli is the lutron command: finding a bridge, pairing with it,
+// what it holds, its zones' levels, the commands a zone, a button and a
+// scene take, its events, and call for the rest. The wiring of flags and
 // output over the caseta and leap packages; nothing that speaks LEAP
 // lives here.
 package cli
@@ -12,13 +12,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"strings"
 	"time"
 	"unicode"
 	"unicode/utf16"
 
 	"github.com/alecthomas/kong"
+	"github.com/forkcloser/go-mdns/transport"
 	"github.com/forkcloser/xos"
 
 	"github.com/duncanite/go-lutron/caseta"
@@ -42,6 +42,10 @@ const (
 var (
 	errNotJSON  = errors.New("the body is not JSON")
 	errIdentity = errors.New("--app-certificate, --app-key and --app-root go together")
+	// errUsage is a command line the command cannot act on.
+	errUsage = errors.New("cannot run")
+	// errNotFound is a bridge that did not answer a search.
+	errNotFound = errors.New("not found")
 )
 
 // exitStatus is how the parser's own exit, on --help, leaves Run: kong
@@ -49,27 +53,42 @@ var (
 // status and Run recovers it.
 type exitStatus int
 
+// Environment is what the command runs in.
+type Environment struct {
+	// Args is its arguments, without its name.
+	Args []string
+	// Out and Err are where it writes.
+	Out io.Writer
+	Err io.Writer
+	// Network is where bridges are searched for; nil is the host's own.
+	Network transport.Network
+}
+
 type rootCommand struct {
-	Host        string `env:"LUTRON_HOST"        help:"The bridge: its address, with a port when it is not the usual one, LEAP's, or the pairing port's for pair."                               required:"true"`
-	Credentials string `env:"LUTRON_CREDENTIALS" help:"The directory holding what pairing gave: key.pem, certificate.pem, root.pem. No default: the key is private, and where it lives is said." required:"true"`
+	Host        string        `env:"LUTRON_HOST"        help:"The bridge: its address, with a port when it is not the usual one, LEAP's, or the pairing port's for pair. With none, the bridge is searched for on this network."`
+	Credentials string        `env:"LUTRON_CREDENTIALS" help:"The directory holding what pairing gave: key.pem, certificate.pem, root.pem. No default: the key is private, and where it lives is said. Every command but discover needs it."`
+	Interface   string        `env:"LUTRON_INTERFACE"   help:"The network interface the bridge is on, when the host has several."`
+	Wait        time.Duration `default:"3s"             env:"LUTRON_WAIT"                                                                                                                                                                    help:"How long a search hears bridges for, and how long each address found is given to answer."`
 
-	Pair    pairCommand    `cmd:"" help:"Pair with the bridge: press its button when asked. Writes the credentials."`
-	Ping    pingCommand    `cmd:"" help:"Ask the bridge whether it is there; print its LEAP version."`
-	Devices devicesCommand `cmd:"" help:"Print every device the bridge knows, with its zone or its buttons."`
-	Scenes  scenesCommand  `cmd:"" help:"Print the scenes."`
-	Level   levelCommand   `cmd:"" help:"Print what a zone is at."`
-	Set     setCommand     `cmd:"" help:"Send a zone to a level, 0 to 100."`
-	On      onCommand      `cmd:"" help:"Send a zone to 100."`
-	Off     offCommand     `cmd:"" help:"Send a zone to 0."`
-	Raise   raiseCommand   `cmd:"" help:"Start raising a zone, until stop."`
-	Lower   lowerCommand   `cmd:"" help:"Start lowering a zone, until stop."`
-	Stop    stopCommand    `cmd:"" help:"Stop a zone being raised or lowered."`
-	Press   pressCommand   `cmd:"" help:"Press and release a button, by its id."`
-	Run     runCommand     `cmd:"" help:"Run a scene, by its id."`
-	Watch   watchCommand   `cmd:"" help:"Print zone changes and button presses until interrupted."`
-	Call    callCommand    `cmd:"" help:"Send any request and print the bridge's answer."`
+	Discover discoverCommand `cmd:"" help:"Print the bridges that announce themselves on this network. Needs no credentials."`
+	Pair     pairCommand     `cmd:"" help:"Pair with the bridge: press its button when asked. Writes the credentials."`
+	Ping     pingCommand     `cmd:"" help:"Ask the bridge whether it is there; print its LEAP version."`
+	Devices  devicesCommand  `cmd:"" help:"Print every device the bridge knows, with its zone or its buttons."`
+	Scenes   scenesCommand   `cmd:"" help:"Print the scenes."`
+	Level    levelCommand    `cmd:"" help:"Print what a zone is at."`
+	Set      setCommand      `cmd:"" help:"Send a zone to a level, 0 to 100."`
+	On       onCommand       `cmd:"" help:"Send a zone to 100."`
+	Off      offCommand      `cmd:"" help:"Send a zone to 0."`
+	Raise    raiseCommand    `cmd:"" help:"Start raising a zone, until stop."`
+	Lower    lowerCommand    `cmd:"" help:"Start lowering a zone, until stop."`
+	Stop     stopCommand     `cmd:"" help:"Stop a zone being raised or lowered."`
+	Press    pressCommand    `cmd:"" help:"Press and release a button, by its id."`
+	Run      runCommand      `cmd:"" help:"Run a scene, by its id."`
+	Watch    watchCommand    `cmd:"" help:"Print zone changes and button presses until interrupted."`
+	Call     callCommand     `cmd:"" help:"Send any request and print the bridge's answer."`
 
-	out io.Writer
+	out     io.Writer
+	network transport.Network
 }
 
 type zoneTarget struct {
@@ -77,7 +96,8 @@ type zoneTarget struct {
 }
 
 type (
-	pairCommand struct {
+	discoverCommand struct{}
+	pairCommand     struct {
 		AppCertificate string        `help:"Another certificate for the pairing port, PEM, in place of the Caséta app's; with --app-key and --app-root."  type:"existingfile"`
 		AppKey         string        `help:"Its key, PEM."                                                                                                type:"existingfile"`
 		AppRoot        string        `help:"The authority the pairing port's own certificate chains to, PEM."                                             type:"existingfile"`
@@ -114,9 +134,11 @@ type (
 	}
 )
 
-// Run parses args and runs the command, printing to stdout and errors to
-// stderr, and returns the exit status.
-func Run(ctx context.Context, args []string, stdout, stderr io.Writer) (status int) {
+// Run parses the arguments and runs the command, printing to Out and
+// errors to Err, and returns the exit status.
+func Run(ctx context.Context, env Environment) (status int) {
+	stdout, stderr := env.Out, env.Err
+
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			exited, ok := recovered.(exitStatus)
@@ -128,7 +150,7 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) (status i
 		}
 	}()
 
-	root := rootCommand{out: stdout}
+	root := rootCommand{out: stdout, network: env.Network}
 
 	parser, err := kong.New(&root,
 		kong.Name("lutron"),
@@ -144,7 +166,7 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) (status i
 		return ExitError
 	}
 
-	kctx, err := parser.Parse(args)
+	kctx, err := parser.Parse(env.Args)
 	if err != nil {
 		parser.Errorf("%s", err)
 
@@ -162,6 +184,10 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) (status i
 
 // credentials reads what pairing wrote.
 func (root *rootCommand) credentials() (*leap.Credentials, error) {
+	if root.Credentials == "" {
+		return nil, fmt.Errorf("%w: --credentials names the directory holding what pairing gave", errUsage)
+	}
+
 	loaded, err := credentials.Load(root.Credentials)
 	if err != nil {
 		return nil, fmt.Errorf("%w; pair writes them", err)
@@ -181,7 +207,7 @@ func (root *rootCommand) with(ctx context.Context, visit func(context.Context, *
 	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
 	defer cancel()
 
-	bridge, err := caseta.Open(ctx, root.Host, creds)
+	bridge, err := root.open(ctx, creds)
 	if err != nil {
 		return err
 	}
@@ -223,6 +249,10 @@ func (root *rootCommand) onZone(
 }
 
 func (cmd *pairCommand) Run(ctx context.Context, root *rootCommand) error {
+	if root.Credentials == "" {
+		return fmt.Errorf("%w: --credentials names the directory to write what pairing gives", errUsage)
+	}
+
 	if !cmd.Force {
 		if err := credentials.Present(root.Credentials); err != nil {
 			return fmt.Errorf("%w; --force replaces them", err)
@@ -247,9 +277,9 @@ func (cmd *pairCommand) Run(ctx context.Context, root *rootCommand) error {
 	ctx, cancel := context.WithTimeout(ctx, cmd.Timeout)
 	defer cancel()
 
-	host := root.Host
-	if _, _, err = net.SplitHostPort(host); err != nil {
-		host = net.JoinHostPort(strings.Trim(host, "[]"), leap.PairingPort)
+	host, err := root.pairing(ctx)
+	if err != nil {
+		return err
 	}
 
 	conn, err := leap.DialTLS(ctx, host, config)
@@ -436,7 +466,7 @@ func (*watchCommand) Run(ctx context.Context, root *rootCommand) error {
 		return err
 	}
 
-	bridge, err := caseta.Open(ctx, root.Host, creds)
+	bridge, err := root.open(ctx, creds)
 	if err != nil {
 		return err
 	}

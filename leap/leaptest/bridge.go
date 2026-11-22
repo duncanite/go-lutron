@@ -16,6 +16,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"fmt"
 	"io"
 	"math/big"
 	"net"
@@ -153,6 +154,26 @@ type Bridge struct {
 
 // New starts a bridge on two loopback ports.
 func New() *Bridge {
+	const anywhere = "127.0.0.1:0"
+
+	bridge, err := start(anywhere, anywhere)
+	if err != nil {
+		panic(err)
+	}
+
+	return bridge
+}
+
+// At starts a bridge at a host of this machine's, on LEAP's own two
+// ports: where a bridge that was found on a network is opened, a found
+// address being on LEAP's port and on none a test chose. Those ports are
+// one bridge's at a time on a host, and At fails when either is taken.
+func At(host string) (*Bridge, error) {
+	return start(net.JoinHostPort(host, leap.Port), net.JoinHostPort(host, leap.PairingPort))
+}
+
+// start is a bridge listening at the two addresses.
+func start(leapAt, pairingAt string) (*Bridge, error) {
 	bridge := &Bridge{
 		authority: newAuthority("Lutron test bridge root"),
 		bootstrap: newAuthority("Lutron test pairing root"),
@@ -193,14 +214,26 @@ func New() *Bridge {
 			}, nil
 		},
 	}
-	bridge.leap = listen(bridge.secured, "127.0.0.1:0")
+
+	var err error
+
+	if bridge.leap, err = tls.Listen("tcp", leapAt, bridge.secured); err != nil {
+		return nil, fmt.Errorf("listening on the LEAP port: %w", err)
+	}
+
 	bridge.address = bridge.leap.Addr().String()
-	bridge.pairing = listen(&tls.Config{
+
+	bridge.pairing, err = tls.Listen("tcp", pairingAt, &tls.Config{
 		MinVersion:   tls.VersionTLS12,
 		Certificates: []tls.Certificate{bridge.bootstrap.issue("bridge", x509.ExtKeyUsageServerAuth)},
 		ClientAuth:   tls.RequireAndVerifyClientCert,
 		ClientCAs:    bridge.bootstrap.pool(),
-	}, "127.0.0.1:0")
+	})
+	if err != nil {
+		_ = bridge.leap.Close()
+
+		return nil, fmt.Errorf("listening on the pairing port: %w", err)
+	}
 
 	bridge.Set(PingURL, "OnePingResponse", map[string]any{"PingResponse": map[string]any{"LEAPVersion": LEAPVersion}})
 	bridge.Set(DevicesURL, "MultipleDeviceDefinition", map[string]any{"Devices": []map[string]any{Itself()}})
@@ -208,7 +241,7 @@ func New() *Bridge {
 	go accept(bridge.leap, bridge.serve)
 	go accept(bridge.pairing, bridge.pair)
 
-	return bridge
+	return bridge, nil
 }
 
 // Addr is the LEAP port's address, host and port.
@@ -310,7 +343,14 @@ func (b *Bridge) Back() {
 		return
 	}
 
-	b.leap = listen(b.secured, b.address)
+	// Its own port again, a moment after it left it: one that is taken by
+	// then is a test's to know, and nothing a caller can act on.
+	listener, err := tls.Listen("tcp", b.address, b.secured)
+	if err != nil {
+		panic(err)
+	}
+
+	b.leap = listener
 
 	go accept(b.leap, b.serve)
 }
@@ -760,15 +800,6 @@ func (b *Bridge) pair(conn net.Conn) {
 	}
 
 	_, _ = conn.Write(append(answer, '\r', '\n'))
-}
-
-func listen(config *tls.Config, address string) net.Listener {
-	listener, err := tls.Listen("tcp", address, config)
-	if err != nil {
-		panic(err)
-	}
-
-	return listener
 }
 
 func accept(listener net.Listener, serve func(net.Conn)) {
