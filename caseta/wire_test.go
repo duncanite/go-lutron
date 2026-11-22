@@ -199,8 +199,9 @@ func TestTheOrderOfTheWire(t *testing.T) {
 
 // TestAWatcherThatGivesUp: a Watch that gives up while its subscription
 // to a button waits leaves the button to the next: a second watcher, who
-// came to the buttons while the first still waited, subscribes for
-// itself once the first is gone, and is told the press.
+// came to the buttons while the first still waited, asks for no
+// subscription until the first is gone, then subscribes for itself, and
+// is told the press.
 func TestAWatcherThatGivesUp(t *testing.T) {
 	t.Parallel()
 
@@ -247,6 +248,16 @@ func TestAWatcherThatGivesUp(t *testing.T) {
 	}
 
 	time.Sleep(100 * time.Millisecond)
+
+	// One Watch at a time subscribes: with the first still waiting, the
+	// second has asked the bridge for nothing of the button, which two
+	// subscriptions on one connection would tell twice from then on.
+	for len(bridge.read) > 0 {
+		if url := <-bridge.read; strings.HasSuffix(url, "/status/event") {
+			t.Fatalf("with the first watcher still waiting for the button, the second asked for %s", url)
+		}
+	}
+
 	giveUp()
 
 	if err := <-gone; !errors.Is(err, context.Canceled) {
