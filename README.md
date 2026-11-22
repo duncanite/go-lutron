@@ -6,15 +6,16 @@ remotes and scenes; what each zone is at; the commands they take; and the events
 bridge sends when a zone changes or a button is pressed.
 
 Lutron does not publish LEAP. What is here follows the open implementations that
-reverse-engineered it. It has been run against one Caséta Smart Bridge: pairing, the
-listing, zone levels, zone and Pico events, and setting a level, at once or over a fade,
-worked; the rest has not been tried.
+reverse-engineered it. It has been run against one Caséta Smart Bridge: finding it on
+the network, pairing, the listing, zone levels, zone and Pico events, and setting a
+level, at once or over a fade, worked; the rest has not been tried.
 [docs/protocol.md](docs/protocol.md#run-against-a-bridge) lists both.
 
 The command, run from the bridge's network:
 
 ```bash
-export LUTRON_HOST=192.0.2.20 LUTRON_CREDENTIALS=~/.config/lutron
+export LUTRON_CREDENTIALS=~/.config/lutron
+just lutron discover                      # the bridges that announce themselves, and where
 just lutron pair                          # press the button on the bridge when asked
 just lutron devices                       # every device: model, serial, firmware, zone or buttons
 just lutron level "Hallway Lights"        # by name, or by zone id
@@ -24,6 +25,11 @@ just lutron run 1                         # a scene
 just lutron watch                         # zone changes and button presses, until interrupted
 just lutron call ReadRequest /device      # anything else, as the bridge answers it
 ```
+
+The bridge is searched for on the network, over Multicast DNS, and the one that takes the
+credentials is the one spoken to; `LUTRON_HOST`, or `--host`, names its address and skips
+the search, and `--interface` says which of the host's networks to search. With several
+bridges on the network, `pair` wants the one to pair with named by `--host`.
 
 `LUTRON_CREDENTIALS` has no default: it holds a private key, so where it lives is said.
 `pair` asks for the button on the bridge to be pressed, and writes the credentials every

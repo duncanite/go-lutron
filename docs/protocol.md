@@ -244,6 +244,16 @@ So a bridge chooses its certificate by the server name it is asked for, and a cl
 sends none: `leap.DialTLS` makes the connection that way whatever the host is written as.
 Whether the pairing port does the same was not tried; it is dialled the same way.
 
+On 2026-11-22, the same bridge, with no address given to the command:
+
+- `discover` printed one bridge, under the serial `/device` gives for it, at one IPv4
+  address with LEAP's port.
+- `ping` and `devices` found it the same way and were answered under the credentials
+  paired on 2026-11-14: LEAP version 1.124, and the listing as with an address.
+
+What was not tried with no address: `pair`, a network with several bridges, and a bridge
+that refuses the credentials.
+
 ## On the network
 
 A bridge announces itself over Multicast DNS. On 2026-11-15 the same bridge announced:

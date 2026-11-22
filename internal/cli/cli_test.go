@@ -31,6 +31,14 @@ func house(t *testing.T) (*leaptest.Bridge, string) {
 	bridge := leaptest.New()
 	t.Cleanup(bridge.Close)
 
+	return bridge, furnished(t, bridge)
+}
+
+// furnished gives a test bridge a dimmer, a Pico and a scene, and is a
+// directory with credentials for it.
+func furnished(t *testing.T, bridge *leaptest.Bridge) string {
+	t.Helper()
+
 	ref := func(href string) map[string]any { return map[string]any{"href": href} }
 
 	bridge.Set("/device", "MultipleDeviceDefinition", map[string]any{"Devices": []map[string]any{
@@ -63,7 +71,7 @@ func house(t *testing.T) (*leaptest.Bridge, string) {
 	dir := t.TempDir()
 	write(t, dir, bridge.Credentials())
 
-	return bridge, dir
+	return dir
 }
 
 func write(t *testing.T, dir string, credentials *leap.Credentials) {
@@ -81,9 +89,15 @@ func write(t *testing.T, dir string, credentials *leap.Credentials) {
 func run(ctx context.Context, bridge *leaptest.Bridge, dir string, args ...string) (string, int) {
 	var out syncBuffer
 
-	status := cli.Run(ctx, append([]string{"--host", bridge.Addr(), "--credentials", dir}, args...), &out, &out)
+	status := command(ctx, &out, append([]string{"--host", bridge.Addr(), "--credentials", dir}, args...)...)
 
 	return out.String(), status
+}
+
+// command is the command under args, writing all it says to out; its
+// status.
+func command(ctx context.Context, out *syncBuffer, args ...string) int {
+	return cli.Run(ctx, cli.Environment{Args: args, Out: out, Err: out})
 }
 
 // syncBuffer is a buffer the command's reading goroutine and the test
@@ -330,7 +344,7 @@ func TestPairCommand(t *testing.T) {
 
 	done := make(chan int, 1)
 
-	go func() { done <- cli.Run(t.Context(), pair, &out, &out) }()
+	go func() { done <- command(t.Context(), &out, pair...) }()
 
 	await(t, &out, "Press the button on the bridge.")
 	bridge.Press()
@@ -352,7 +366,7 @@ func TestPairCommand(t *testing.T) {
 
 	var again syncBuffer
 
-	if status := cli.Run(t.Context(), pair, &again, &again); status != cli.ExitError ||
+	if status := command(t.Context(), &again, pair...); status != cli.ExitError ||
 		!strings.Contains(again.String(), "credentials are already there") {
 		t.Fatalf("pairing over credentials: %d\n%s", status, again.String())
 	}
@@ -364,7 +378,7 @@ func TestPairCommand(t *testing.T) {
 	// Forced, it pairs over them; the button is still pressed.
 	var forced syncBuffer
 
-	if status := cli.Run(t.Context(), append(pair, "--force"), &forced, &forced); status != cli.ExitOK {
+	if status := command(t.Context(), &forced, append(pair, "--force")...); status != cli.ExitOK {
 		t.Fatalf("pairing over credentials, forced: %d\n%s", status, forced.String())
 	}
 
@@ -394,7 +408,7 @@ func TestPairBeforeTheButton(t *testing.T) {
 			"--app-key", filepath.Join(app, "key.pem"), "--app-root", filepath.Join(app, "root.pem"),
 		}, more...)
 
-		status := cli.Run(t.Context(), args, &out, &out)
+		status := command(t.Context(), &out, args...)
 
 		return out.String(), status
 	}
@@ -432,11 +446,11 @@ func TestPairBeforeTheButton(t *testing.T) {
 	done := make(chan int, 1)
 
 	go func() {
-		done <- cli.Run(t.Context(), []string{
+		done <- command(t.Context(), &over, []string{
 			"--host", paired.PairingAddr(), "--credentials", leftover, "pair",
 			"--app-certificate", filepath.Join(pairedApp, "certificate.pem"),
 			"--app-key", filepath.Join(pairedApp, "key.pem"), "--app-root", filepath.Join(pairedApp, "root.pem"),
-		}, &over, &over)
+		}...)
 	}()
 
 	await(t, &over, "Press the button on the bridge.")
@@ -497,9 +511,9 @@ func TestPairBeforeTheButton(t *testing.T) {
 	// not Lutron's.
 	var bare syncBuffer
 
-	status = cli.Run(t.Context(), []string{
+	status = command(t.Context(), &bare, []string{
 		"--host", bridge.PairingAddr(), "--credentials", filepath.Join(t.TempDir(), "c"), "pair", "--timeout", "5s",
-	}, &bare, &bare)
+	}...)
 	if status != cli.ExitError || !strings.Contains(bare.String(), "the bridge's certificate") {
 		t.Fatalf(
 			"pair under the Caseta app's identity, to a bridge that is not Lutron's: %d\n%s",
@@ -524,7 +538,7 @@ func TestPairBeforeTheButton(t *testing.T) {
 
 			var partial syncBuffer
 
-			if status = cli.Run(t.Context(), args, &partial, &partial); status != cli.ExitError ||
+			if status = command(t.Context(), &partial, args...); status != cli.ExitError ||
 				!strings.Contains(partial.String(), "go together") {
 				t.Fatalf("pair with %v: %d\n%s", some, status, partial.String())
 			}
@@ -597,7 +611,7 @@ func TestWatchCommand(t *testing.T) {
 	done := make(chan int, 1)
 
 	go func() {
-		done <- cli.Run(ctx, []string{"--host", bridge.Addr(), "--credentials", dir, "watch"}, &out, &out)
+		done <- command(ctx, &out, []string{"--host", bridge.Addr(), "--credentials", dir, "watch"}...)
 	}()
 
 	// Each zone is read once first, and printed where it stands; then

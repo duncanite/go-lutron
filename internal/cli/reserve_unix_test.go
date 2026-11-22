@@ -37,11 +37,11 @@ func TestPairReservesBeforeTheButton(t *testing.T) {
 	certificate, key, root := bridge.BootstrapPEM()
 	write(t, app, &leap.Credentials{Key: key, Certificate: certificate, Root: root})
 
-	status := cli.Run(t.Context(), []string{
+	status := command(t.Context(), &out, []string{
 		"--host", bridge.PairingAddr(), "--credentials", dir, "pair",
 		"--app-certificate", filepath.Join(app, "certificate.pem"),
 		"--app-key", filepath.Join(app, "key.pem"), "--app-root", filepath.Join(app, "root.pem"),
-	}, &out, &out)
+	}...)
 	if status != cli.ExitError || !strings.Contains(out.String(), "key.pem.new") ||
 		strings.Contains(out.String(), "Press the button") {
 		t.Fatalf("a directory the key's file cannot be made in: %d\n%s", status, out.String())
