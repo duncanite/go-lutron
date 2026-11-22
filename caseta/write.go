@@ -5,6 +5,8 @@ import (
 	"io"
 	"strings"
 	"text/tabwriter"
+
+	"github.com/duncanite/go-lutron/internal/terminal"
 )
 
 // WriteDevices prints the devices as a table, a person's listing: each
@@ -12,10 +14,14 @@ import (
 // firmware, the zones it drives, and its buttons as id=number. buttons
 // is what Buttons returned; a device's are found through its button
 // groups.
+//
+// What the bridge wrote is shown and not obeyed: a character a terminal
+// would not simply draw, a line's end or a tab in a name among them, is
+// written out as Go writes it in a string.
 func WriteDevices(out io.Writer, devices []Device, buttons []Button) error {
 	table := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 
-	fmt.Fprintln(table, "DEVICE\tNAME\tTYPE\tMODEL\tSERIAL\tFIRMWARE\tZONE\tBUTTONS")
+	terminal.Printf(table, "DEVICE\tNAME\tTYPE\tMODEL\tSERIAL\tFIRMWARE\tZONE\tBUTTONS\n")
 
 	for index := range devices {
 		device := &devices[index]
@@ -26,7 +32,7 @@ func WriteDevices(out io.Writer, devices []Device, buttons []Button) error {
 			zones = append(zones, driven.ID())
 		}
 
-		fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%d\t%s\t%s\t%s\n",
+		terminal.Printf(table, "%s\t%s\t%s\t%s\t%d\t%s\t%s\t%s\n",
 			device.ID(), strings.Join(device.FullyQualifiedName, " "), device.DeviceType,
 			device.ModelNumber, device.SerialNumber, device.Firmware, strings.Join(zones, ","),
 			strings.Join(buttonsOf(device, buttons), " "))

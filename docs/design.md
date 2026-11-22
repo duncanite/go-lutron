@@ -31,6 +31,16 @@ and what was not tried.
 
 ## Decisions
 
+- **What the bridge wrote is shown on a terminal and never obeyed.** A device's name, a
+  scene's, an area's and what the bridge says in refusing are whatever the bridge, or
+  whoever answers for it, wrote. Every line the command prints, and the listing
+  `WriteDevices` writes, goes through `internal/terminal`, which writes out, as Go writes
+  them in a string, each character a terminal would not simply draw: a control or a
+  direction mark, a line's end, a tab, a byte that is no text. The bridge's own answer,
+  printed as JSON by `call`, stays JSON: such a character in it is written as JSON writes
+  one, `\uXXXX`, so the answer reads back the same and still goes through a JSON tool. A
+  test reads the command's source and fails on a line printed any other way, since no
+  test of what is printed could name every line there will be.
 - **The transport knows no object.** `leap` moves messages and matches tags; what a zone
   is lives in `caseta`. A RadioRA 3 or HomeWorks processor speaks the same wire with
   another arrangement of objects, and would be a package beside `caseta`, not a change to

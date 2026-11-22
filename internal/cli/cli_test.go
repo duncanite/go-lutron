@@ -3,12 +3,15 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+	"unicode"
 
 	"github.com/forkcloser/xos"
 	"github.com/mycophonic/primordium/filesystem"
@@ -115,6 +118,75 @@ func await(t *testing.T, out *syncBuffer, text string) {
 		}
 
 		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// TestABridgesWords: what a bridge says is shown and never obeyed. A
+// scene's name and a device's, with a line's end, a direction mark and an
+// escape sequence in them, are written out in the listings and in the
+// bridge's own answer, and forge no line of the command's.
+func TestABridgesWords(t *testing.T) {
+	t.Parallel()
+
+	const (
+		hostile = "Movie\nlutron: all is well\u202e\x1b[2J"
+		shown   = `Movie\nlutron: all is well\u202e\x1b[2J`
+	)
+
+	bridge, dir := house(t)
+
+	bridge.Set("/virtualbutton", "MultipleVirtualButtonDefinition", map[string]any{"VirtualButtons": []map[string]any{
+		{"href": "/virtualbutton/1", "Name": hostile, "IsProgrammed": true},
+	}})
+	bridge.Set("/device", "MultipleDeviceDefinition", map[string]any{"Devices": []map[string]any{
+		leaptest.Itself(),
+		{
+			"href": "/device/2", "Name": hostile, "FullyQualifiedName": []string{"Hallway", hostile},
+			"SerialNumber": 2345, "ModelNumber": hostile, "DeviceType": hostile,
+		},
+	}})
+
+	if out, status := run(t.Context(), bridge, dir, "scenes"); status != cli.ExitOK || out != "1\t"+shown+"\n" {
+		t.Errorf("scenes of a scene with a hostile name exits %d saying %q", status, out)
+	}
+
+	out, status := run(t.Context(), bridge, dir, "devices")
+	if status != cli.ExitOK || strings.Count(out, "\n") != 3 || strings.Count(out, shown) != 3 {
+		t.Errorf("devices of a device with hostile words exits %d saying\n%s", status, out)
+	}
+
+	// The bridge's answer as JSON: JSON writes out the line's end and the
+	// escape, and the direction mark is written out here.
+	out, status = run(t.Context(), bridge, dir, "call", "ReadRequest", "/virtualbutton")
+	if status != cli.ExitOK || !strings.Contains(out, `Movie\nlutron: all is well\u202e\u001b[2J`) ||
+		strings.Contains(out, "\u202e") || strings.Contains(out, "\nlutron:") {
+		t.Errorf("call of a scene with a hostile name exits %d saying\n%s", status, out)
+	}
+
+	// And it stays JSON, whatever the name: a delete, a tag character past
+	// the sixteen bits and a direction mark are written as JSON writes
+	// them, and read back as they were.
+	const odd = "del\x7f tag\U000e0067 mark\u202e space\u00a0 plain \u00e9"
+
+	bridge.Set("/virtualbutton", "MultipleVirtualButtonDefinition", map[string]any{"VirtualButtons": []map[string]any{
+		{"href": "/virtualbutton/1", "Name": odd, "IsProgrammed": true},
+	}})
+
+	out, status = run(t.Context(), bridge, dir, "call", "ReadRequest", "/virtualbutton")
+	if status != cli.ExitOK ||
+		!strings.Contains(out, `del\u007f tag\udb40\udc67 mark\u202e space\u00a0 plain `+"\u00e9") {
+		t.Errorf("call of a scene with an odd name exits %d saying\n%s", status, out)
+	}
+
+	for _, char := range out {
+		if char != '\n' && !unicode.IsPrint(char) {
+			t.Errorf("call printed %U as it came", char)
+		}
+	}
+
+	var read any
+	if err := json.Unmarshal([]byte(out), &read); err != nil || !strings.Contains(fmt.Sprint(read), odd) {
+		t.Errorf("what call printed reads back as %v, %v; want the answer, with the name as it was", read, err)
 	}
 }
 
