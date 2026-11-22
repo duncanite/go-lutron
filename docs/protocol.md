@@ -216,13 +216,23 @@ pylutron-caseta reads that answer as a body in which `Buttons` is absent, by the
 in its `_load_buttons`, and reads other collections a bridge has none of, occupancy groups
 among them, as an answer with no body at all. This module takes both for none.
 
-What was not tried: `Raise`, `Lower` and `Stop`, pressing a button or running a scene by
-command, Smart Away, occupancy groups, a request for a URL the bridge lacks, pairing
-without the identity, a signing request sent before the button, and credentials the
-bridge no longer takes: which TLS version it speaks, and whether it refuses a client's
-certificate with an alert or by hanging up, is not recorded. That bridge has no
-programmed scene: `/virtualbutton` answers a hundred slots under Lutron's default names,
-each with `IsProgrammed` false.
+On 2026-11-22 the commands a held or a pressed button stands for were run against the
+same bridge, each answered without an error:
+
+- `Raise` to a dimmer's zone at 30, and `Stop` about four seconds later: the zone read
+  92 a second after. `Lower`, and `Stop` about two seconds later: it read 47. So a
+  bridge takes all three, and a zone moves until it is stopped; neither reading is an
+  end of the range. Whether the light was still at the read was not watched.
+- `PressAndRelease` to a Pico's button number 0, then to its number 2: the zone that
+  Pico controls, at 47 before the two, read 0 after them. What it was at between them
+  was not read.
+
+What was not tried: running a scene by command, Smart Away, occupancy groups, a request
+for a URL the bridge lacks, pairing without the identity, a signing request sent before
+the button, and credentials the bridge no longer takes: which TLS version it speaks, and
+whether it refuses a client's certificate with an alert or by hanging up, is not
+recorded. That bridge has no programmed scene: `/virtualbutton` answers a hundred slots
+under Lutron's default names, each with `IsProgrammed` false.
 
 On 2026-11-15, the same bridge, reached by its mDNS name in place of its address:
 
