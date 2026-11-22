@@ -1344,3 +1344,29 @@ func TestFindZone(t *testing.T) {
 		}
 	}
 }
+
+// TestWriteDevicesShowsABridgesWords: the listing shows what the bridge
+// wrote and obeys none of it: a name, a type and a model with a line's
+// end, a tab, a direction mark and an escape sequence in them are written
+// out, and the listing has its two lines.
+func TestWriteDevicesShowsABridgesWords(t *testing.T) {
+	t.Parallel()
+
+	const (
+		hostile = "Lamp\nDEVICE\tNAME\u202e\x1b[2J"
+		shown   = `Lamp\nDEVICE\tNAME\u202e\x1b[2J`
+	)
+
+	var listing strings.Builder
+
+	err := caseta.WriteDevices(&listing, []caseta.Device{{
+		FullyQualifiedName: []string{"Hall", hostile}, DeviceType: hostile, ModelNumber: hostile, Firmware: hostile,
+	}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := listing.String(); strings.Count(got, "\n") != 2 || strings.Count(got, shown) != 4 {
+		t.Fatalf("the listing of a device with hostile words:\n%s", got)
+	}
+}

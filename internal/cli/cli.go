@@ -15,12 +15,15 @@ import (
 	"net"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf16"
 
 	"github.com/alecthomas/kong"
 	"github.com/forkcloser/xos"
 
 	"github.com/duncanite/go-lutron/caseta"
 	"github.com/duncanite/go-lutron/internal/credentials"
+	"github.com/duncanite/go-lutron/internal/terminal"
 	"github.com/duncanite/go-lutron/leap"
 )
 
@@ -136,7 +139,7 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) (status i
 		kong.BindTo(ctx, (*context.Context)(nil)),
 	)
 	if err != nil {
-		fmt.Fprintln(stderr, "lutron:", err)
+		terminal.Printf(stderr, "lutron: %s\n", err)
 
 		return ExitError
 	}
@@ -149,7 +152,7 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) (status i
 	}
 
 	if err := kctx.Run(&root); err != nil {
-		fmt.Fprintln(stderr, "lutron:", err)
+		terminal.Printf(stderr, "lutron: %s\n", err)
 
 		return ExitError
 	}
@@ -255,7 +258,7 @@ func (cmd *pairCommand) Run(ctx context.Context, root *rootCommand) error {
 	}
 
 	paired, err := leap.Pair(ctx, conn, cmd.Name, func() {
-		fmt.Fprintln(root.out, "Press the button on the bridge.")
+		terminal.Printf(root.out, "Press the button on the bridge.\n")
 	})
 	if err != nil {
 		return err
@@ -265,7 +268,7 @@ func (cmd *pairCommand) Run(ctx context.Context, root *rootCommand) error {
 		return err
 	}
 
-	fmt.Fprintf(root.out, "Paired as %q; the credentials are in %s.\n", cmd.Name, root.Credentials)
+	terminal.Printf(root.out, "Paired as \"%s\"; the credentials are in %s.\n", cmd.Name, root.Credentials)
 
 	return nil
 }
@@ -318,7 +321,7 @@ func (*pingCommand) Run(ctx context.Context, root *rootCommand) error {
 			return err
 		}
 
-		fmt.Fprintf(root.out, "LEAP %v\n", version)
+		terminal.Printf(root.out, "LEAP %v\n", version)
 
 		return nil
 	})
@@ -349,7 +352,7 @@ func (*scenesCommand) Run(ctx context.Context, root *rootCommand) error {
 
 		for _, scene := range scenes {
 			if scene.IsProgrammed {
-				fmt.Fprintf(root.out, "%s\t%s\n", scene.ID(), scene.Name)
+				terminal.Printf(root.out, "%s\t%s\n", scene.ID(), scene.Name)
 			}
 		}
 
@@ -365,12 +368,12 @@ func (cmd *levelCommand) Run(ctx context.Context, root *rootCommand) error {
 		}
 
 		if status.Level == nil {
-			fmt.Fprintf(root.out, "zone %s reports no level\n", zoneID)
+			terminal.Printf(root.out, "zone %s reports no level\n", zoneID)
 
 			return nil
 		}
 
-		fmt.Fprintf(root.out, "zone %s is at %d\n", zoneID, *status.Level)
+		terminal.Printf(root.out, "zone %s is at %d\n", zoneID, *status.Level)
 
 		return nil
 	})
@@ -444,12 +447,12 @@ func (*watchCommand) Run(ctx context.Context, root *rootCommand) error {
 		switch told := event.(type) {
 		case caseta.ZoneStatus:
 			if told.Level != nil {
-				fmt.Fprintf(root.out, "zone %s is at %d\n", told.Zone.ID(), *told.Level)
+				terminal.Printf(root.out, "zone %s is at %d\n", told.Zone.ID(), *told.Level)
 			}
 		case caseta.ButtonEvent:
-			fmt.Fprintf(root.out, "button %s %s\n", told.Button.ID(), strings.ToLower(told.Type))
+			terminal.Printf(root.out, "button %s %s\n", told.Button.ID(), strings.ToLower(told.Type))
 		case caseta.Settled:
-			fmt.Fprintln(root.out, "watching")
+			terminal.Printf(root.out, "watching\n")
 		}
 	})
 
@@ -483,8 +486,45 @@ func (cmd *callCommand) Run(ctx context.Context, root *rootCommand) error {
 			return fmt.Errorf("the bridge's answer: %w", marshalErr)
 		}
 
-		fmt.Fprintln(root.out, string(pretty))
+		// The lines are this command's; what is on each is the bridge's,
+		// written so that it stays JSON.
+		for line := range strings.SplitSeq(drawn(pretty), "\n") {
+			terminal.Printf(root.out, "%s\n", line)
+		}
 
 		return err
 	})
+}
+
+// drawn is a JSON document with every character a terminal would not
+// simply draw written as JSON itself writes one, \uXXXX, a pair of them
+// for a character past the sixteen bits: the document reads back the same,
+// and holds nothing a terminal obeys. Such a character is inside a string:
+// outside one, a document Go marshalled holds spaces and line ends alone,
+// and the line ends are kept.
+//
+// What terminal.Text would write for them is Go's, and two of its forms,
+// \x7f and \U000e0067, are no JSON.
+func drawn(document []byte) string {
+	var written strings.Builder
+
+	for _, char := range string(document) {
+		if char == '\n' || unicode.IsPrint(char) {
+			written.WriteRune(char)
+		} else {
+			written.WriteString(escaped(char))
+		}
+	}
+
+	return written.String()
+}
+
+// escaped is one character as JSON escapes it: \uXXXX, and a pair of
+// them, its two halves, for a character sixteen bits do not hold.
+func escaped(char rune) string {
+	if high, low := utf16.EncodeRune(char); high != unicode.ReplacementChar {
+		return fmt.Sprintf(`\u%04x\u%04x`, high, low)
+	}
+
+	return fmt.Sprintf(`\u%04x`, char)
 }
