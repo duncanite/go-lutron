@@ -10,13 +10,14 @@ and what was not tried.
 ## Shape
 
 - `leap`: the wire. `Conn` sends a request under a tag and waits for the answer that
-  carries it, so one connection serves several goroutines; `Subscribe` keeps its tag for
-  the events that follow; `Unsolicited` takes what no request asked for. `Pair` is the
+  carries it, so one connection serves several goroutines; `Pages` asks for an answer
+  that comes in pages, to its end; `Subscribe` keeps its tag for the events that follow;
+  `Unsolicited` takes what no request asked for. `Pair` is the
   exchange on the pairing port, and `TLSConfig` turns what it gave into what `Dial`
   needs. Standard library only.
 - `leap/leaptest`: a bridge for tests. Both TLS ports under authorities made for the
   test, the pairing behind a button, LEAP over a table of resources, with commands
-  recorded and events emitted on demand.
+  recorded, events emitted on demand, and lists answered in pages when told to.
 - `caseta`: a Caséta bridge's objects over that wire. `Open` takes an address and the
   credentials and gives a `Bridge`, which has the bridge's `ID`; devices, with the
   firmware each runs, areas, buttons, scenes; `WriteDevices`, the listing a command
@@ -45,6 +46,16 @@ and what was not tried.
   is lives in `caseta`. A RadioRA 3 or HomeWorks processor speaks the same wire with
   another arrangement of objects, and would be a package beside `caseta`, not a change to
   `leap`.
+- **A collection is read to its end, or not at all.** A bridge may answer a collection a
+  page at a time ([the wire](protocol.md#the-wire)), and a first page taken for the whole
+  is a wrong answer given in silence: some of the devices, then `Settled`. `leap.Pages`
+  asks for every page, each request carrying the `Paging` of the answer before, and
+  `caseta` joins the lists; a page that fails fails the read. A bridge that always says
+  more follows would be asked forever, so an answer is 256 pages at most, and one in more
+  is no message. Following pages is in `leap`, since `Paging` is the header's; joining
+  them is in `caseta`, since what a body holds is not the wire's to know. No page was
+  seen from a Caséta bridge: this is the reference implementation's behaviour, held
+  against the stand-in.
 - **The wire's handlers run on the reading goroutine.** In `leap`, an event is handed to
   its handler where it was read, in order, with no queue between: a queue has to be
   bounded, and a bound has to drop or block. The price is a rule: a handler returns

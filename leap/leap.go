@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 	"net"
 	"strconv"
 	"strings"
@@ -49,6 +50,10 @@ const (
 // the bridge sends, well under this.
 const maxLine = 4 << 20
 
+// maxPages bounds one answer: a bridge that always says more follows
+// would otherwise be asked forever.
+const maxPages = 256
+
 // The errors a Conn hands back, to test with errors.Is.
 var (
 	// ErrClosed: the connection was closed by its owner, with Close.
@@ -61,12 +66,15 @@ var (
 	// the 200s; the error carries the status as the bridge wrote it.
 	ErrStatus = errors.New("the bridge refused the request")
 	// ErrMessage: a line from the bridge is not a LEAP message, or is
-	// longer than a message may be.
+	// longer than a message may be, or an answer comes in more pages than
+	// one may.
 	ErrMessage = errors.New("not a LEAP message")
 )
 
 // Header is a message's header. A request sets ClientTag and URL; an
-// answer adds StatusCode and names its body's type.
+// answer adds StatusCode and names its body's type. An answer that is not
+// the whole of what was asked for carries Paging, and the same request
+// with that Paging in its header asks for what follows: Pages does.
 type Header struct {
 	ClientTag       string          `json:"ClientTag,omitempty"`       //nolint:tagliatelle // the bridge's keys are PascalCase
 	URL             string          `json:"Url,omitempty"`             //nolint:tagliatelle // the bridge's keys are PascalCase
@@ -211,8 +219,54 @@ func New(conn net.Conn) *Conn {
 // context bounds the wait for the answer and the write before it; a
 // write it cuts short leaves half a line on the wire, so it ends the
 // connection.
+//
+// The answer is one message. A bridge may answer a collection in pages,
+// and this is then the first: Pages reads them all.
 func (c *Conn) Request(ctx context.Context, communique, url string, body any) (*Message, error) {
-	return c.exchange(ctx, communique, url, body, nil)
+	return c.exchange(ctx, communique, url, body, nil, nil)
+}
+
+// Pages is Request for an answer that may come in pages: it sends the
+// request, and sends it again with the Paging of each answer for as long
+// as an answer carries one, handing over every answer in the order the
+// bridge gave them. An answer whose Paging is null or an empty object is
+// the last. Each page is a Request, with what Request says of the context
+// and of the connection.
+//
+// An error ends the pages, and is handed over with the answer it came
+// with when it is ErrStatus, and with none otherwise. An answer in more
+// than 256 pages is ErrMessage. Nothing more is asked of the bridge once
+// the caller stops ranging.
+func (c *Conn) Pages(ctx context.Context, communique, url string, body any) iter.Seq2[*Message, error] {
+	return func(yield func(*Message, error) bool) {
+		var paging json.RawMessage
+
+		for range maxPages {
+			answer, err := c.exchange(ctx, communique, url, body, paging, nil)
+			if !yield(answer, err) || err != nil {
+				return
+			}
+
+			paging = answer.Header.Paging
+			if !follows(paging) {
+				return
+			}
+		}
+
+		yield(nil, fmt.Errorf("%w: %s %s: an answer in more than %d pages", ErrMessage, communique, url, maxPages))
+	}
+}
+
+// follows reports whether an answer's Paging says that more follows.
+func follows(paging json.RawMessage) bool {
+	var written bytes.Buffer
+
+	// What was not there at all does not compact.
+	if json.Compact(&written, paging) != nil {
+		return false
+	}
+
+	return written.String() != "null" && written.String() != "{}"
 }
 
 // Subscribe sends a subscription for url and, when the bridge accepts
@@ -225,7 +279,7 @@ func (c *Conn) Request(ctx context.Context, communique, url string, body any) (*
 // goroutine. A handler that needs either hands the message to a
 // goroutine of its own.
 func (c *Conn) Subscribe(ctx context.Context, url string, handler func(Message)) (*Message, error) {
-	return c.exchange(ctx, Subscribe, url, nil, handler)
+	return c.exchange(ctx, Subscribe, url, nil, nil, handler)
 }
 
 // Unsolicited sets the handler for the messages the bridge sends with no
@@ -268,10 +322,12 @@ func (c *Conn) exchange(
 	ctx context.Context,
 	communique, url string,
 	body any,
+	paging json.RawMessage,
 	handler func(Message),
 ) (*Message, error) {
 	message := Message{CommuniqueType: communique}
 	message.Header.URL = url
+	message.Header.Paging = paging
 	message.Header.ClientTag = "go-" + strconv.FormatUint(c.next.Add(1), 10)
 
 	if body != nil {
