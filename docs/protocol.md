@@ -62,6 +62,31 @@ A subscription is a `SubscribeRequest` for a URL. The bridge answers it once, an
 then on sends a message with the same `ClientTag` each time what the URL names changes.
 The bridge also sends messages with no tag, which no request asked for.
 
+An answer may be one page of several. Its header then carries a `Paging`, and the same
+request with that `Paging` in its header is answered with what follows, until an answer
+carries none:
+
+```json
+{"CommuniqueType": "ReadResponse",
+ "Header": {"MessageBodyType": "MultipleAreaDefinition", "StatusCode": "200 OK", "Url": "/area",
+            "Paging": {"ContinuationToken": "..."}},
+ "Body": {"Areas": [...]}}
+```
+
+That header was reported from a HomeWorks QSX processor that holds more than 99 areas
+([the report](https://github.com/gurumitts/pylutron-caseta/issues/152#issuecomment-1928150976),
+and [what sending it back
+gave](https://github.com/gurumitts/pylutron-caseta/issues/152#issuecomment-1928654717)).
+pylutron-caseta has since repeated every request for as long as an answer carries a
+`Paging`, and joined the lists the bodies hold
+([`_request`](https://github.com/gurumitts/pylutron-caseta/blob/1c25f55bef14adf0bac81c2bba43ea4f7e6826b1/src/pylutron_caseta/smartbridge.py#L284-L319)).
+This module does the same for a collection, up to 256 pages. Whether a Caséta bridge
+pages anything, and what a bridge answers a `Paging` it did not give, is not known: the
+answers [captured from one](../caseta/testdata/smartbridge/README.md), 21 devices, 18
+areas, 15 buttons and 100 scene slots, each came whole, with no `Paging`. Whether the
+answer to a subscription pages is not known either; pylutron-caseta reads it as one
+message, and so does this module.
+
 What a bridge answers for a URL it does not have was not in the recorded answers.
 
 ## Pairing

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -775,6 +776,75 @@ func TestACollectionTheBridgeHasNoneOf(t *testing.T) {
 
 	if version, err := opened.Ping(t.Context()); err == nil {
 		t.Fatalf("Ping answered with no body = %v, want an error", version)
+	}
+}
+
+// TestACollectionInPages: a bridge that answers a collection a few at a
+// time is read to the end: every collection is what it is from a bridge
+// that answers it whole, in the same order. A bridge that pages is opened
+// like any other, by its first device.
+func TestACollectionInPages(t *testing.T) {
+	t.Parallel()
+
+	fake, opened := bridge(t)
+
+	type held struct {
+		devices []caseta.Device
+		areas   []caseta.Area
+		buttons []caseta.Button
+		scenes  []caseta.Scene
+	}
+
+	read := func(from *caseta.Bridge) held {
+		t.Helper()
+
+		var (
+			all held
+			err error
+		)
+
+		if all.devices, err = from.Devices(t.Context()); err != nil {
+			t.Fatalf("Devices: %v", err)
+		}
+
+		if all.areas, err = from.Areas(t.Context()); err != nil {
+			t.Fatalf("Areas: %v", err)
+		}
+
+		if all.buttons, err = from.Buttons(t.Context()); err != nil {
+			t.Fatalf("Buttons: %v", err)
+		}
+
+		if all.scenes, err = from.Scenes(t.Context()); err != nil {
+			t.Fatalf("Scenes: %v", err)
+		}
+
+		return all
+	}
+
+	whole := read(opened)
+
+	// Two at a time is pages only for what holds more than two.
+	if len(whole.devices) < 3 || len(whole.areas) < 3 || len(whole.buttons) < 3 || len(whole.scenes) < 3 {
+		t.Fatalf("the recorded bridge holds %d devices, %d areas, %d buttons, %d scenes: too few to page",
+			len(whole.devices), len(whole.areas), len(whole.buttons), len(whole.scenes))
+	}
+
+	fake.Page(2)
+
+	if paged := read(opened); !reflect.DeepEqual(paged, whole) {
+		t.Errorf("read two at a time, the bridge holds\n%+v\nwant what it holds read whole\n%+v", paged, whole)
+	}
+
+	again, err := caseta.Open(t.Context(), fake.Addr(), fake.Credentials())
+	if err != nil {
+		t.Fatalf("opening a bridge that pages: %v", err)
+	}
+
+	t.Cleanup(func() { _ = again.Close() })
+
+	if again.ID() != opened.ID() {
+		t.Errorf("a bridge that pages is %s, and %s read whole", again.ID(), opened.ID())
 	}
 }
 

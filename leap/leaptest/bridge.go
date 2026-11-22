@@ -13,11 +13,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"io"
 	"math/big"
 	"net"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -55,6 +58,7 @@ func Itself() map[string]any {
 const (
 	readResponse = "ReadResponse"
 	statusOK     = "200 OK"
+	badRequest   = "400 BadRequest"
 )
 
 // pairingRequest is what a client sends the pairing port, as far as the
@@ -135,10 +139,12 @@ type Bridge struct {
 	named []string
 	// signer signs the clients' certificates, and is whom the LEAP port
 	// takes them from: Revoke replaces it.
-	signer        *authority
-	refused       map[string]string
-	resources     map[string]resource
-	commands      []Command
+	signer    *authority
+	refused   map[string]string
+	resources map[string]resource
+	commands  []Command
+	// page is how many of a list one answer to a read holds; zero is all.
+	page          int
 	subscriptions []subscription
 	clients       []*client
 	paired        []string
@@ -347,6 +353,23 @@ func (b *Bridge) Set(url, bodyType string, body any) {
 	b.resources[url] = resource{bodyType: bodyType, body: raw}
 }
 
+// Page makes the bridge answer a read in pages, as a bridge that holds
+// more of a collection than it gives at once: a resource whose body is
+// one list is answered size items at a time, each answer but the last
+// with a Paging that holds a continuation token, and a read that sends
+// that Paging back gets what follows. A Paging the bridge did not give
+// for that resource is answered 400. Zero answers every read whole again.
+//
+// The Paging is as one bridge of a larger system was reported to send
+// it, {"ContinuationToken": "..."}; what is in the token is this
+// stand-in's own.
+func (b *Bridge) Page(size int) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	b.page = size
+}
+
 // Commands is every create and update request received, in order.
 func (b *Bridge) Commands() []Command {
 	b.mu.Lock()
@@ -515,9 +538,17 @@ func (b *Bridge) answer(from *client, request *leap.Message) *leap.Message {
 			return answer
 		}
 
+		body, paging, understood := b.paged(request, found.body)
+		if !understood {
+			answer.Header.StatusCode = badRequest
+
+			return answer
+		}
+
 		answer.Header.StatusCode = statusOK
 		answer.Header.MessageBodyType = found.bodyType
-		answer.Body = found.body
+		answer.Header.Paging = paging
+		answer.Body = body
 	case leap.Subscribe:
 		answer.CommuniqueType = "SubscribeResponse"
 
@@ -550,10 +581,77 @@ func (b *Bridge) answer(from *client, request *leap.Message) *leap.Message {
 		}
 	default:
 		answer.CommuniqueType = "ExceptionResponse"
-		answer.Header.StatusCode = "400 BadRequest"
+		answer.Header.StatusCode = badRequest
 	}
 
 	return answer
+}
+
+// paged is the part of a resource's body a read is answered with, and the
+// Paging that goes with it when more follows. A read that carries a
+// Paging is understood only when the bridge gave it for that resource.
+func (b *Bridge) paged(request *leap.Message, whole json.RawMessage) (body, paging json.RawMessage, understood bool) {
+	from, understood := continued(request)
+	if !understood {
+		return nil, nil, false
+	}
+
+	if b.page <= 0 && from == 0 {
+		return whole, nil, true
+	}
+
+	// A body that is one list is what comes in pages; any other is whole.
+	var members map[string][]json.RawMessage
+	if json.Unmarshal(whole, &members) != nil || len(members) != 1 {
+		return whole, nil, from == 0
+	}
+
+	for name, items := range members {
+		if from > len(items) {
+			return nil, nil, false
+		}
+
+		until := len(items)
+		if b.page > 0 && from+b.page < until {
+			until = from + b.page
+
+			token := base64.StdEncoding.EncodeToString([]byte(request.Header.URL + " " + strconv.Itoa(until)))
+
+			paging, _ = json.Marshal(map[string]string{"ContinuationToken": token})
+		}
+
+		body, _ = json.Marshal(map[string][]json.RawMessage{name: items[from:until]})
+	}
+
+	return body, paging, true
+}
+
+// continued is where in a list a read goes on from: the start for one
+// with no Paging, and for one with a Paging the place its token names,
+// when that token is one paged gives for the resource asked for.
+func continued(request *leap.Message) (from int, understood bool) {
+	if request.Header.Paging == nil {
+		return 0, true
+	}
+
+	var sent struct {
+		ContinuationToken string `json:"ContinuationToken"` //nolint:tagliatelle // the bridge's keys are PascalCase
+	}
+
+	if json.Unmarshal(request.Header.Paging, &sent) != nil {
+		return 0, false
+	}
+
+	token, err := base64.StdEncoding.DecodeString(sent.ContinuationToken)
+	if err != nil {
+		return 0, false
+	}
+
+	url, at, cut := strings.Cut(string(token), " ")
+
+	from, err = strconv.Atoi(at)
+
+	return from, cut && err == nil && url == request.Header.URL && from > 0
 }
 
 // refuse ends a connection whose handshake the bridge failed, so that

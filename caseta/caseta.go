@@ -342,57 +342,27 @@ type pingResponse struct {
 	LEAPVersion float64 `json:"LEAPVersion"` //nolint:tagliatelle // the bridge's keys are PascalCase
 }
 
-// Devices is every device the bridge knows, itself first.
+// Devices is every device the bridge knows, itself first. A bridge lists
+// itself: an answer with no body is no answer, where for the other
+// collections it is none.
 func (b *Bridge) Devices(ctx context.Context) ([]Device, error) {
-	var body struct {
-		Devices []Device `json:"Devices"` //nolint:tagliatelle // the bridge's keys are PascalCase
-	}
-
-	if err := b.read(ctx, urlDevices, &body); err != nil {
-		return nil, err
-	}
-
-	return body.Devices, nil
+	return gather[Device](ctx, b, urlDevices, "Devices", false)
 }
 
 // Areas is every room.
 func (b *Bridge) Areas(ctx context.Context) ([]Area, error) {
-	var body struct {
-		Areas []Area `json:"Areas"` //nolint:tagliatelle // the bridge's keys are PascalCase
-	}
-
-	if err := b.list(ctx, urlAreas, &body); err != nil {
-		return nil, err
-	}
-
-	return body.Areas, nil
+	return gather[Area](ctx, b, urlAreas, "Areas", true)
 }
 
 // Buttons is every button of every keypad and Pico.
 func (b *Bridge) Buttons(ctx context.Context) ([]Button, error) {
-	var body struct {
-		Buttons []Button `json:"Buttons"` //nolint:tagliatelle // the bridge's keys are PascalCase
-	}
-
-	if err := b.list(ctx, urlButtons, &body); err != nil {
-		return nil, err
-	}
-
-	return body.Buttons, nil
+	return gather[Button](ctx, b, urlButtons, "Buttons", true)
 }
 
 // Scenes is every scene slot; the ones a scene was made in have
 // IsProgrammed.
 func (b *Bridge) Scenes(ctx context.Context) ([]Scene, error) {
-	var body struct {
-		VirtualButtons []Scene `json:"VirtualButtons"` //nolint:tagliatelle // the bridge's keys are PascalCase
-	}
-
-	if err := b.list(ctx, urlScenes, &body); err != nil {
-		return nil, err
-	}
-
-	return body.VirtualButtons, nil
+	return gather[Scene](ctx, b, urlScenes, "VirtualButtons", true)
 }
 
 // Zone reads what the zone with this id is at.
@@ -505,21 +475,55 @@ func (b *Bridge) read(ctx context.Context, url string, into any) error {
 	return answer.Decode(into)
 }
 
-// list reads a collection a bridge may have none of, which it may then
-// answer with no body at all, under a status in the 200s: that is none,
-// and not an answer that cannot be read. The devices are not one: a
-// bridge lists itself.
-func (b *Bridge) list(ctx context.Context, url string, into any) error {
-	answer, err := b.conn.Request(ctx, leap.Read, url, nil)
-	if err != nil {
-		return absent(answer, err)
+// gather reads a collection whole, in however many pages the bridge
+// answers it: the list each page holds under key follows the one before.
+//
+// A bridge may answer a collection it has none of with no body at all,
+// under a status in the 200s: with mayBeNone that is none, and not an
+// answer that cannot be read.
+func gather[T any](ctx context.Context, b *Bridge, url, key string, mayBeNone bool) ([]T, error) {
+	all := listed[T]{key: key}
+
+	for answer, err := range b.conn.Pages(ctx, leap.Read, url, nil) {
+		if err != nil {
+			return nil, absent(answer, err)
+		}
+
+		if mayBeNone && len(answer.Body) == 0 {
+			continue
+		}
+
+		if err = answer.Decode(&all); err != nil {
+			return nil, err
+		}
 	}
 
-	if len(answer.Body) == 0 {
-		return nil
+	return all.items, nil
+}
+
+// listed is a collection as its pages come: each body decoded into it
+// adds the list under key to what the pages before gave.
+type listed[T any] struct {
+	key   string
+	items []T
+}
+
+func (l *listed[T]) UnmarshalJSON(data []byte) error {
+	var members map[string]json.RawMessage
+	if err := json.Unmarshal(data, &members); err != nil {
+		return err //nolint:wrapcheck // Decode, which this is for, says whose body it was
 	}
 
-	return answer.Decode(into)
+	var page []T
+	if held, ok := members[l.key]; ok {
+		if err := json.Unmarshal(held, &page); err != nil {
+			return err //nolint:wrapcheck // Decode, which this is for, says whose body it was
+		}
+	}
+
+	l.items = append(l.items, page...)
+
+	return nil
 }
 
 // absent is err as ErrNotFound when it is the bridge answering that it
