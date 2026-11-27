@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/alecthomas/kong v1.17.0
-	github.com/forkcloser/go-mdns v0.0.0-20261116031615-ee1ffba2ede5
+	github.com/forkcloser/go-mdns v0.0.0-20261127084458-51c914647b2a
 	github.com/forkcloser/xos v0.1.2
 	github.com/mycophonic/primordium v0.15.1
 	golang.org/x/sys v0.50.0
